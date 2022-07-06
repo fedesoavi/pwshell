@@ -1,52 +1,53 @@
 ﻿
+# iwr -useb  | iex
+
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
 	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
 	Exit
 }
 
-
 $Conteggio = 0
 FOR($Conteggio = -1){
 
-$DO = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | SELECT PathName
-$DO = ($DO -split "PathName="|  Select -last 1).Trim("}")
+$pathGp90 = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | Select-Object PathName 
+$pathGp90 = Split-Path -Path $pathGp90.PathName
+
+$pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+
+$iniDict = @{}
+           switch -regex -file $pathInit
+                {
+                    “^\[(.+)\]” # Section
+                    {
+                        $section = $matches[1]
+                        $iniDict[$section] = @{}
+                        $CommentCount = 0
+                    }
+                    “^(;.*)$” # Comment
+                    {
+                        $value = $matches[1]
+                        $CommentCount = $CommentCount + 1
+                        $name = “Comment” + $CommentCount
+                        $iniDict[$section][$name] = $value
+                    }
+                    “(.+?)\s*=(.*)” # Key
+                    {
+                        $name,$value = $matches[1..2]
+                        $iniDict[$section][$name] = $value
+                    }
+                }
 
 
-    
+                Write-Host "Lettura INIT OSLRDserver:
+                -
+                -"
+
+if ($iniDict.Config.segnaliSuTabella=-1) {Write-Host 'Segnali su Tabella Attivo'} else{Write-Host 'Segnali su Tabella disattivo'}
+if ($iniDict.Config.UsoCollegamentoUnico=-1) {Write-Host 'UsoCollegamento Unico Attivo'} else{Write-Host 'UsoCollegamento Unico disattivo'}
+Write-Host 'Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+Write-Host 'Indirizzo IP del PC attuale: ' (Get-NetIPAddress | Where-Object {$_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00"}).IPAddress
 
 
-<# Parte di lettura del file  #>
-cls
-        $INIT = ($DO -REPLACE "OSLRDServerService.exe","init.ini") 
-        ECHO "Lettura INIT OSLRDserver: "
-        ECHO "-"
-        ECHO "-"
-        $SEL = Select-String -Path  $INIT -Pattern "SegnaliSuTabella=-1"
-        $SEL2 = Select-String -Path $INIT -Pattern "UsoCollegamentoUnico=-1" 
-        $SEL3 = Select-String -Path $INIT -Pattern "TCPListener=" 
-        $SEL3 = ($SEL3 -split "TCPListener="|  Select -last 1)
-        ECHO ("Indirizzo IP inserito dentro INIT: "+$SEL3)
-        $ipv4 = (Get-NetIPAddress | Where-Object {$_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00"}).IPAddress
-        ECHO ( 'Indirizzo IP del PC attuale: '+$ipv4)
-
-        if ($SEL -ne $null)
-        {
-            echo "Segnali su Tabella Attivo"
-        }
-        else
-        {
-            echo "Segnali su Tabella Disattivo"
-        }
-
-        if ($SEL2 -ne $null)
-        {
-            echo "UsoCollegamento Unico Attivo"
-        }
-        else
-        {
-            echo "Uso collegamento Unico Disattivo"
-        }
- <# Fine parte di lettura  #>
 
 ECHO " ---------------------------------------------------------------------------------------------- "
 
@@ -104,14 +105,14 @@ $SCELTA = Read-Host -Prompt "indicami che cosa vuoi fare ? "
 
       $IP = Read-Host -Prompt 'Inserisci IP da modificare '
 
-      (Get-Content $INIT) -replace ("ServerTCPListener="+$SEL3), ('ServerTCPListener='+$IP) | Set-Content $INIT 
+      (Get-Content $INIDictT) -replace ("ServerTCPListener="+$SEL3), ('ServerTCPListener='+$IP) | Set-Content $INIDictT 
 
       pause
        
      }
      if ($SCELTA -eq "INIT"){       
       CLS
-      $ourfilesdata = Get-Content $INIT
+      $ourfilesdata = Get-Content $INIDictT
       $ourfilesdata
 
       pause       
@@ -130,13 +131,13 @@ $SCELTA = Read-Host -Prompt "indicami che cosa vuoi fare ? "
           Get-Service -Name OverOneMonitoringWindowsService |Select name,status,starttype
       }
        if ($SCELTA -eq "E"){ 
-         $ini = @{}
-           switch -regex -file $INIT
+         $iniDict = @{}
+           switch -regex -file $INIDictT
                 {
                     “^\[(.+)\]” # Section
                     {
                         $section = $matches[1]
-                        $ini[$section] = @{}
+                        $iniDict[$section] = @{}
                         $CommentCount = 0
                     }
                     “^(;.*)$” # Comment
@@ -144,31 +145,31 @@ $SCELTA = Read-Host -Prompt "indicami che cosa vuoi fare ? "
                         $value = $matches[1]
                         $CommentCount = $CommentCount + 1
                         $name = “Comment” + $CommentCount
-                        $ini[$section][$name] = $value
+                        $iniDict[$section][$name] = $value
                     }
                     “(.+?)\s*=(.*)” # Key
                     {
                         $name,$value = $matches[1..2]
-                        $ini[$section][$name] = $value
+                        $iniDict[$section][$name] = $value
                     }
                 }
          
          FOR($Continuo = -1;$Continuo -lt 10;$Continuo++){
           Write-Host "Quale TAG del file INIT vuoi modificare ? " -ForegroundColor green   
-           $ini.keys
+           $iniDict.keys
 
            $TAG = Read-Host -Prompt "Quale vuoi modificare ? "
            Write-Host "Perfetto, il TAG contiene questi valori:  " -ForegroundColor green
-           $ini[$TAG]
+           $iniDict[$TAG]
 
            Write-Host "Cosa vuoi modificare ? " -ForegroundColor green
            $MOD = Read-Host -Prompt "indica il TAG:  "
            #Write-Host "Valore ? " -ForegroundColor green
            $VAL = Read-Host -Prompt  "Quale Valore: "
 
-           $ini[$TAG][$MOD] = $VAL
+           $iniDict[$TAG][$MOD] = $VAL
            CLS
-           $ini[$TAG]
+           $iniDict[$TAG]
            $YESNO = Read-Host Prompt  "Continuare a fare delle modifiche ? [S/N]: "
                if($YESNO -ne 'S'){
                  $Continuo = 11
@@ -176,9 +177,9 @@ $SCELTA = Read-Host -Prompt "indicami che cosa vuoi fare ? "
             #END FOR
          }
                 # START WRITE
-                $InputObject = $ini
-                 Remove-Item -Path $INIT -Force
-                $outFile = New-Item -ItemType file -Path $INIT
+                $InputObject = $iniDict
+                 Remove-Item -Path $INIDictT -Force
+                $outFile = New-Item -ItemType file -Path $INIDictT
                 foreach ($i in $InputObject.keys)
                 {
                     if (!($($InputObject[$i].GetType().Name) -eq “Hashtable”))
