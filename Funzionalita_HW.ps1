@@ -1,45 +1,9 @@
-﻿<#:: I primi 2 comandi servono per avviare da CMD la power Shell
-Set-ExecutionPolicy RemoteSigned
-PowerShell c:\path\to\script\PowerShellScript.ps1 #>
-
-Function Check-RunAsAdministrator()
-{
-  #Get current user context
-  $CurrentUser = New-Object Security.Principal.WindowsPrincipal $([Security.Principal.WindowsIdentity]::GetCurrent())
-  
-  #Check user is running the script is member of Administrator Group
-  if($CurrentUser.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator))
-  {
-       Write-host "Script is running with Administrator privileges!"
-  }
-  else
-    {
-       #Create a new Elevated process to Start PowerShell
-       $ElevatedProcess = New-Object System.Diagnostics.ProcessStartInfo "PowerShell";
- 
-       # Specify the current script path and name as a parameter
-       $ElevatedProcess.Arguments = "& '" + $script:MyInvocation.MyCommand.Path + "'"
- 
-       #Set the Process to elevated
-       $ElevatedProcess.Verb = "runas"
- 
-       #Start the new elevated process
-       [System.Diagnostics.Process]::Start($ElevatedProcess)
- 
-       #Exit from the current, unelevated, process
-       Exit
- 
-    }
+﻿
+If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+	Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+	Exit
 }
- 
-#Check Script is running with Elevated Privileges
-Check-RunAsAdministrator
- 
-#Place your script here.
-write-host "Avviato Come ADMINISTRATOR"
 
-
-#Read more: https://www.sharepointdiary.com/2015/01/run-powershell-script-as-administrator-automatically.html#ixzz7VjEmvkmn
 
 $Conteggio = 0
 FOR($Conteggio = -1){
@@ -47,7 +11,7 @@ FOR($Conteggio = -1){
 $DO = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | SELECT PathName
 $DO = ($DO -split "PathName="|  Select -last 1).Trim("}")
 
-<#  Get-NetIPAddress -AddressFamily IPv4 -PrefixOrigin Dhcp | SELECT IPAddress
+
     
 
 
