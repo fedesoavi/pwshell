@@ -82,9 +82,11 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
     Write-Host '
       Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
-    $IndirizzoIP = (Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected"}).IPv4Address.IPAddress
+
+      # leggo Id sheda di rete attiva e reverso l'indirizzo ip e dettagli
+    $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected"}).InterfaceIndex
     Write-Host '
-      Indirizzi IP del PC attuali: ' $IndirizzoIP
+      Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
 
     Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
     Write-Host "                                                                                                  
