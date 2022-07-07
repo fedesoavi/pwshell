@@ -1,8 +1,6 @@
 ﻿# iwr -useb  | iex
 
 #TODO eccezioni su porte firewall
-#TODO trovare ip server
-
 
 
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
@@ -69,6 +67,7 @@ function Write-INIT-OSLRDServer {
 }
 
 
+
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
     $pathGp90 = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | Select-Object PathName 
@@ -78,16 +77,14 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
     $iniDict = MEMInit $pathInit
 
-             
-
     if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
     if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
 
     Write-Host '
-    Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
-    $IndirizzoIP = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias Ethernet)
+      Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+    $IndirizzoIP = (Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected"}).IPv4Address.IPAddress
     Write-Host '
-    Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
+      Indirizzi IP del PC attuali: ' $IndirizzoIP
 
     Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
     Write-Host "                                                                                                  
