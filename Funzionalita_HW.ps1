@@ -15,18 +15,21 @@ function MEMInit {
     
     $init = @{}
     switch -regex -file $Directory {
-        “^\[(.+)\]” { # Section
+        “^\[(.+)\]” {
+            # Section
             $section = $matches[1]
             $init[$section] = @{}
             $CommentCount = 0
         }
-        “^(;.*)$” { # Comment
+        “^(;.*)$” {
+            # Comment
             $value = $matches[1]
             $CommentCount = $CommentCount + 1
             $name = “Comment” + $CommentCount
             $init[$section][$name] = $value
         }
-        “(.+?)\s*=(.*)” { # Key
+        “(.+?)\s*=(.*)” {
+            # Key
             $name, $value = $matches[1..2]
             $init[$section][$name] = $value
         }
@@ -66,16 +69,48 @@ function Write-INIT-OSLRDServer {
     } # END WRITE
 }
 
+function Kill-RdConsole {
+
+    # get appConsole process
+    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+    if ($appConsole) {
+        # try gracefully first
+        $appConsole.CloseMainWindow()
+        # kill after five seconds
+        Start-Sleep 5
+        if (!$appConsole.HasExited) {
+            $appConsole | Stop-Process -Force
+        }
+    }
+    Remove-Variable appConsole
+}
+
+function Kill-RdService {
+
+    # get RdService service
+    $rdService = Get-Service OSLRDServer -ErrorAction SilentlyContinue
+    if ($rdService.Status -ne 'Stopped') {
+        # try gracefully first
+        $rdService.Stop()
+        # kill after five seconds
+        Start-Sleep 5
+        if ($rdService.Status -ne 'Stopped') {
+            Stop-Process -name OSLRDServerService -Force
+        }
+    }
+    Remove-Variable rdService
+}
+
+$pathGp90 = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | Select-Object PathName 
+$pathGp90 = Split-Path -Path $pathGp90.PathName
+
+$pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+$pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
+
+$iniDict = MEMInit $pathInit
 
 
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
-
-    $pathGp90 = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | Select-Object PathName 
-    $pathGp90 = Split-Path -Path $pathGp90.PathName
-
-    $pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
-
-    $iniDict = MEMInit $pathInit
 
     if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
     if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
@@ -83,8 +118,8 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Write-Host '
       Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
 
-      # leggo Id sheda di rete attiva e reverso l'indirizzo ip e dettagli
-    $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected"}).InterfaceIndex
+    # leggo Id sheda di rete attiva e reverso l'indirizzo ip e dettagli
+    $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" }).InterfaceIndex
     Write-Host '
       Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
 
@@ -99,32 +134,32 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Digitare [E]dit per modificare INIT di OSLRDserver                                              
     Digitare [INIT] per la lettura del Init di OSLRDServer                                          
     Digitare [R]estricted, verfiicare stato restrizione policy esecuione script, ed impostarlo a REstricted
-    "
+    " 
+    
     $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
 
-
-    if ($SCELTA -eq "s") { 
-        TASKKILL /f /IM "OSLRDServer.exe"
-        Start-Service  OSLRDServer
-
-        pause
-    }
     # [S]ervice per avviare la modalita servizio 
-    if ($SCELTA -eq "s") { 
-        TASKKILL /f /IM "OSLRDServer.exe"
-        Start-Service  OSLRDServer
+    if ($SCELTA -eq "s") {
+        
+        Kill-RdConsole
+        Restart-Service  OSLRDServer
 
-        pause
+        Get-Service OSLRDServer
+
+        start-sleep 5
+        Clear-Host
     }
 
+    #[C]onsole per avviare la modalita console
     if ($SCELTA -eq "c") { 
-        TASKKILL /f /IM "OSLRDServerService.exe"
-        $pathEXERDServer = $pathGp90 + '\AppConsole\OSLRDServer.exe' 
+     
+        Kill-RdConsole
+        Kill-RdService
 
-        Start-Process $pathEXERDServer | Write-Host " Il Servizio è stato avviato in modalità console"
+        Start-Process $pathConsole -Verb RunAs | Write-Host " Il Servizio è stato avviato in modalità console"
 
+        start-sleep 5
         Clear-Host
-
     }
 
     if ($SCELTA -eq "k") { 
@@ -206,6 +241,9 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
            
 
+    }
+    if ($SCELTA -eq "x") {          
+        Exit
     }
 
 }
