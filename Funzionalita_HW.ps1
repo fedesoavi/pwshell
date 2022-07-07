@@ -75,14 +75,18 @@ function Kill-RdConsole {
     $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
     if ($appConsole) {
         # try gracefully first
+        Write-Host 'is AppConsole closed?'
         $appConsole.CloseMainWindow()
         # kill after five seconds
-        Start-Sleep 5
+        Start-Sleep 3
         if (!$appConsole.HasExited) {
             $appConsole | Stop-Process -Force
+            Write-Host 'AppConsole Killed'
         }
+        
     }
     Remove-Variable appConsole
+    
 }
 
 function Kill-RdService {
@@ -91,14 +95,17 @@ function Kill-RdService {
     $rdService = Get-Service OSLRDServer -ErrorAction SilentlyContinue
     if ($rdService.Status -ne 'Stopped') {
         # try gracefully first
-        $rdService.Stop()
+        Stop-Service $rdService
         # kill after five seconds
-        Start-Sleep 5
+        Start-Sleep 3
         if ($rdService.Status -ne 'Stopped') {
             Stop-Process -name OSLRDServerService -Force
+            write-Host 'OSLRDService Killed'
         }
+        write-Host 'OSLRDService Stopped'
     }
     Remove-Variable rdService
+    
 }
 
 $pathGp90 = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | Select-Object PathName 
@@ -107,7 +114,7 @@ $pathGp90 = Split-Path -Path $pathGp90.PathName
 $pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
 $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-$iniDict = MEMInit $pathInit
+# $iniDict = MEMInit $pathInit
 
 
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
@@ -156,13 +163,17 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Kill-RdConsole
         Kill-RdService
 
-        Start-Process $pathConsole -Verb RunAs | Write-Host " Il Servizio è stato avviato in modalità console"
+        Start-Process $pathConsole -Verb RunAs 
 
         start-sleep 5
         Clear-Host
     }
 
+    #[K]ill per arrestare il servizio o console e OverOne             
     if ($SCELTA -eq "k") { 
+
+        Get-Service OSLRDServer 
+        
         TASKKILL /f /IM "OSLRDServer.exe"
         TASKKILL /f /IM "OSLRDServerService.exe"
         TASKKILL /f /IM "OverOneMonitoringWindowsService.exe"
