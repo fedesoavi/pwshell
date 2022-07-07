@@ -109,6 +109,13 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
         pause
     }
+    # [S]ervice per avviare la modalita servizio 
+    if ($SCELTA -eq "s") { 
+        TASKKILL /f /IM "OSLRDServer.exe"
+        Start-Service  OSLRDServer
+
+        pause
+    }
 
     if ($SCELTA -eq "c") { 
         TASKKILL /f /IM "OSLRDServerService.exe"
