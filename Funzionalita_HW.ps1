@@ -1,5 +1,10 @@
 ﻿# iwr -useb  | iex
 
+#TODO eccezioni su porte firewall
+#TODO trovare ip server
+
+
+
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
@@ -77,24 +82,25 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
     if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
     if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
-    Write-Host ' '
-    Write-Host '  Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
-    Write-Host '  Indirizzo IP del PC attuale: ' (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
-    Write-Host ' '
+
+    Write-Host '
+    Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+    $IndirizzoIP = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias Ethernet)
+    Write-Host '
+    Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
 
     Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
-    Write-Host "                                                                                                "
-    Write-Host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: "
-    Write-Host ' '
-    Write-Host " Digitare [C]onsole per avviare la modalita console                                              "
-    Write-Host " Digitare [S]ervice per avviare la modalita servizio                                             "
-    Write-Host " Digitare [K]ill per arrestare il servizio o console e OverOne                                   "
-    Write-Host " Digitare [O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG              "
-    Write-Host " Digitare [TCP] Per modificare TCPListener All'interno del init                                  "
-    Write-Host " Digitare [E]dit per modificare INIT di OSLRDserver                                              "
-    Write-Host " Digitare [INIT] per la lettura del Init di OSLRDServer                                          "
-    Write-Host " Digitare [R]estricted, verfiicare stato restrizione policy esecuione script, ed impostarlo a REstricted"
-    Write-Host " "
+    Write-Host "                                                                                                  
+    Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
+    Digitare [C]onsole per avviare la modalita console                                              
+    Digitare [S]ervice per avviare la modalita servizio                                             
+    Digitare [K]ill per arrestare il servizio o console e OverOne                                   
+    Digitare [O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG              
+    Digitare [TCP] Per modificare TCPListener All'interno del init                                  
+    Digitare [E]dit per modificare INIT di OSLRDserver                                              
+    Digitare [INIT] per la lettura del Init di OSLRDServer                                          
+    Digitare [R]estricted, verfiicare stato restrizione policy esecuione script, ed impostarlo a REstricted
+    "
     $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
 
 
