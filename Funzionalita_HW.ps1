@@ -133,19 +133,32 @@ function Get-AppPath {
     return $serviceBinaryPath    
 }
 
+Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 0
+
 #Path Services
 $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
 $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
+
+Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 20
 
 #Path file
 $pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
 $pathLogOverOne =  Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
 
+Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 40
+
 #Path exe
 $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-# $iniDict = MEMInit $pathInit
+Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 60
 
+$iniDict = MEMInit $pathInit
+
+Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 80
+
+$IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" }).InterfaceIndex
+
+Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 100
 
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
@@ -156,7 +169,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
       Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
 
     # leggo Id sheda di rete attiva e reverso l'indirizzo ip e dettagli
-    $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" }).InterfaceIndex
+
     Write-Host '
       Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
 
@@ -224,11 +237,10 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     }
     if ($SCELTA -eq "INIT") {       
         Clear-Host
-
-        $ourfilesdata = Get-Content $pathInit
-        $ourfilesdata
-
-        pause       
+        notepad $pathInit
+        Clear-Host
+        pause   
+        Clear-Host    
     }
     if ($SCELTA -eq "R") {       
         get-executionpolicy
@@ -238,9 +250,9 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     }
 
     if ($SCELTA -eq "task") {       
-        Get-CimInstance -ClassName win32_service | Where-Object Name -eq OSLRDServer | Select-Object name, status, starttype
-        Get-CimInstance -ClassName win32_service | Where-Object Name -eq OSLProcessiService | Select-Object name, status, starttype
-        Get-CimInstance -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, status, starttype
+        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLRDServer | Select-Object name, state,status, starttype
+        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLProcessiService | Select-Object name, state,status, starttype
+        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, state,status, starttype
         Pause
         Clear-Host
     }
