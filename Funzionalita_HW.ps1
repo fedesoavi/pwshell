@@ -102,16 +102,46 @@ function Kill-RdService {
             Stop-Process -name OSLRDServerService -Force
             write-Host 'OSLRDService Killed'
         }
-        write-Host 'OSLRDService Stopped'
+        write-Host 'OSLRDService now Stopped'
     }
     Remove-Variable rdService
     
 }
+function Kill-OverOneMonitoring {
 
-$pathGp90 = Get-CimInstance -ClassName win32_service | Where-Object Name -eq "OSLRDServer" | Select-Object PathName 
-$pathGp90 = Split-Path -Path $pathGp90.PathName
+    # get OverOneMonitoring service
+    $OverOneMonitoring = Get-Service OverOneMonitoringWindowsService -ErrorAction SilentlyContinue
+    if ($OverOneMonitoring.Status -ne 'Stopped') {
+        Stop-Process -name OverOneMonitoringWindowsService -Force
+        write-Host 'OverOneMonitoring Killed'        
+    }
+    Remove-Variable OverOneMonitoring
+    
+}
 
+function Get-AppPath {
+    param ([Parameter (Mandatory = $true)] [string] $serviceName) 
+
+    $service = Get-CimInstance -ClassName win32_service | Where-Object Name -eq $servicename
+    $serviceBinaryPath = if ($service.pathname -like '"*') { 
+    ($service.pathname -split '"')[1] # get path without quotes
+    }
+    else {
+    (-split $service.pathname)[0] # get 1st token
+    }
+
+    return $serviceBinaryPath    
+}
+
+#Path Services
+$pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
+$pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
+
+#Path file
 $pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+$pathLogOverOne =  Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
+
+#Path exe
 $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
 # $iniDict = MEMInit $pathInit
@@ -144,54 +174,43 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     " 
     
     $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
+    Write-Host ' '
 
     # [S]ervice per avviare la modalita servizio 
     if ($SCELTA -eq "s") {
-        
         Kill-RdConsole
         Restart-Service  OSLRDServer
-
         Get-Service OSLRDServer
-
-        start-sleep 5
+        start-sleep 3
         Clear-Host
     }
 
     #[C]onsole per avviare la modalita console
     if ($SCELTA -eq "c") { 
-     
         Kill-RdConsole
         Kill-RdService
-
         Start-Process $pathConsole -Verb RunAs 
-
-        start-sleep 5
+        start-sleep 3
         Clear-Host
     }
 
     #[K]ill per arrestare il servizio o console e OverOne             
     if ($SCELTA -eq "k") { 
-
-        Get-Service OSLRDServer 
-        
-        TASKKILL /f /IM "OSLRDServer.exe"
-        TASKKILL /f /IM "OSLRDServerService.exe"
-        TASKKILL /f /IM "OverOneMonitoringWindowsService.exe"
-
+        Kill-RdConsole
+        Kill-RdService
+        Kill-OverOneMonitoring      
         Write-Host "Servizi FERMI"
-
-        pause
+        start-sleep 3
+        Clear-Host
     }
-    if ($SCELTA -eq "o") {       
-
-
-        TASKKILL /f /IM "OverOneMonitoringWindowsService.exe"
-        Remove-Item -Path "C:\Program Files (x86)\OverOne\Services\Monitor\Log\overOneMonitoringService.log" -Force
+    if ($SCELTA -eq "o") {
+        Kill-OverOneMonitoring
+        Remove-Item -Path $pathLogOverOne -Force
         Start-Service  OverOneMonitoringWindowsService     
-        TIMEOUT /t 10
-        Start-Process "C:\Program Files (x86)\OverOne\Services\Monitor\Log\overOneMonitoringService.log"
-
-        pause
+        TIMEOUT /t 5
+        Start-Process $pathLogOverOne
+        start-sleep 3
+        Clear-Host
     }
     if ($SCELTA -eq "TCP") {       
 
@@ -219,11 +238,11 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     }
 
     if ($SCELTA -eq "task") {       
-        
-        Get-Service -Name OSLRDServer | Select-Object name, status, starttype
-        Get-Service -Name OSLProcessiService | Select-Object name, status, starttype
-        Get-Service -Name OverOneMonitoringWindowsService | Select-Object name, status, starttype
-
+        Get-CimInstance -ClassName win32_service | Where-Object Name -eq OSLRDServer | Select-Object name, status, starttype
+        Get-CimInstance -ClassName win32_service | Where-Object Name -eq OSLProcessiService | Select-Object name, status, starttype
+        Get-CimInstance -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, status, starttype
+        Pause
+        Clear-Host
     }
     if ($SCELTA -eq "E") {          
 
