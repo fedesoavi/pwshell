@@ -133,32 +133,20 @@ function Get-AppPath {
     return $serviceBinaryPath    
 }
 
-Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 0
-
 #Path Services
 $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
 $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
 
-Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 20
-
 #Path file
 $pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
-$pathLogOverOne =  Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
-
-Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 40
+$pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
 
 #Path exe
 $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 60
-
 $iniDict = MEMInit $pathInit
 
-Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 80
-
 $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" }).InterfaceIndex
-
-Write-Progress -Activity 'Starting' -Status 'Loading' -PercentComplete 100
 
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
@@ -183,19 +171,17 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Digitare [TCP] Per modificare TCPListener All'interno del init                                  
     Digitare [E]dit per modificare INIT di OSLRDserver                                              
     Digitare [INIT] per la lettura del Init di OSLRDServer                                          
-    Digitare [R]estricted, verfiicare stato restrizione policy esecuione script, ed impostarlo a REstricted
+    Digitare [R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
     " 
     
     $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
     Write-Host ' '
 
-    # [S]ervice per avviare la modalita servizio 
+    # [S]ervice per avviare la modalita servizio
     if ($SCELTA -eq "s") {
         Kill-RdConsole
         Restart-Service  OSLRDServer
         Get-Service OSLRDServer
-        start-sleep 3
-        Clear-Host
     }
 
     #[C]onsole per avviare la modalita console
@@ -203,28 +189,23 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Kill-RdConsole
         Kill-RdService
         Start-Process $pathConsole -Verb RunAs 
-        start-sleep 3
-        Clear-Host
     }
-
-    #[K]ill per arrestare il servizio o console e OverOne             
+    #[K]ill per arrestare il servizio o console e OverOne
     if ($SCELTA -eq "k") { 
         Kill-RdConsole
         Kill-RdService
         Kill-OverOneMonitoring      
         Write-Host "Servizi FERMI"
-        start-sleep 3
-        Clear-Host
     }
+    #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
     if ($SCELTA -eq "o") {
         Kill-OverOneMonitoring
         Remove-Item -Path $pathLogOverOne -Force
         Start-Service  OverOneMonitoringWindowsService     
         TIMEOUT /t 5
         Start-Process $pathLogOverOne
-        start-sleep 3
-        Clear-Host
     }
+    #[TCP] Per modificare TCPListener All'interno del init
     if ($SCELTA -eq "TCP") {       
 
         $IP = Read-Host -Prompt 'Inserisci IP da modificare '
@@ -233,31 +214,25 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
         #Ricarico il file in memoria
         $iniDict = MEMInit $pathInit
-
     }
+    #[INIT] per la lettura del Init di OSLRDServer
     if ($SCELTA -eq "INIT") {       
-        Clear-Host
-        notepad $pathInit
-        Clear-Host
-        pause   
-        Clear-Host    
+        notepad $pathInit  
     }
+    #[R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
     if ($SCELTA -eq "R") {       
         get-executionpolicy
         set-executionpolicy RemoteSigned    
-
-        pause       
     }
-
+    #[task] show service
     if ($SCELTA -eq "task") {       
-        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLRDServer | Select-Object name, state,status, starttype
-        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLProcessiService | Select-Object name, state,status, starttype
-        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, state,status, starttype
+        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLRDServer | Select-Object name, state, status, starttype
+        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLProcessiService | Select-Object name, state, status, starttype
+        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, state, status, starttype
         Pause
-        Clear-Host
     }
+    #[E]dit per modificare INIT di OSLRDserver
     if ($SCELTA -eq "E") {          
-
         FOR ($Continuo = -1; $Continuo -lt 10; $Continuo++) {
             Write-Host "Quale TAG del file INIT vuoi modificare ? " -ForegroundColor green   
             $iniDict.keys
@@ -281,11 +256,10 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
             #END FOR
         } #Write File
         Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
-           
-
     }
     if ($SCELTA -eq "x") {          
         Exit
     }
-
+    start-sleep 3
+    Clear-Host
 }
