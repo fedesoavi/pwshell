@@ -79,7 +79,7 @@ function Kill-RdConsole {
         $appConsole.CloseMainWindow()
         # kill after five seconds
         Start-Sleep 3
-        if (!$appConsole.HasExited) {
+        if (!$appConsole) {
             $appConsole | Stop-Process -Force
             Write-Host 'AppConsole Killed'
         }
