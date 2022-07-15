@@ -150,6 +150,11 @@ $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-
 
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
+    #Garbage collection
+    if (($i % 200) -eq 0) {
+        [System.GC]::Collect()
+    }
+
     if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
     if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
 
