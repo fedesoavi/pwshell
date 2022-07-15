@@ -1,8 +1,12 @@
-﻿# iwr -useb  | iex
+﻿
 
+#--------------------------------------------------
 #TODO eccezioni su porte firewall
+#TODO auto firewall
+#TODO get Machine LIST and check firewall
+#--------------------------------------------------
 
-
+#Start in Admin mode
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
@@ -69,7 +73,7 @@ function Write-INIT-OSLRDServer {
     } # END WRITE
 }
 
-function Kill-RdConsole {
+function Stop-RdConsole {
 
     # get appConsole process
     $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
@@ -89,7 +93,7 @@ function Kill-RdConsole {
     
 }
 
-function Kill-RdService {
+function Stop-RdService {
 
     # get RdService service
     $rdService = Get-Service OSLRDServer -ErrorAction SilentlyContinue
@@ -107,7 +111,7 @@ function Kill-RdService {
     Remove-Variable rdService
     
 }
-function Kill-OverOneMonitoring {
+function Stop-OverOneMonitoring {
 
     # get OverOneMonitoring service
     $OverOneMonitoring = Get-Service OverOneMonitoringWindowsService -ErrorAction SilentlyContinue
@@ -133,20 +137,43 @@ function Get-AppPath {
     return $serviceBinaryPath    
 }
 
-#Path Services
+function Sync-INIT-Console {
+    #check init from service to appconsole if are equal
+    if (Test-Path -Path $pathInitConsole -PathType Leaf) {
+        if (!((Get-FileHash $pathInitService).Hash -eq (Get-FileHash $pathInitConsole).Hash)) {
+            Write-Host 'Console ini not aligned...'
+            Copy-Item $pathInitService -Destination $pathInitConsole
+            Write-Host 'Copied from Service...Completed'
+            Start-Sleep 3
+            Clear-Host
+        }
+    }
+    else {
+        Write-Host 'Console ini missing...'
+        Copy-Item $pathInitService -Destination $pathInitConsole
+        Write-Host 'Copied from Service...Completed'
+        Start-Sleep 3
+        Clear-Host
+    }
+}
+
+#Path Application
 $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
 $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
 
 #Path file
-$pathInit = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+$pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+$pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
 $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
 
 #Path exe
 $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-$iniDict = MEMInit $pathInit
+$iniDict = MEMInit $pathInitService
 
 $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" }).InterfaceIndex
+
+Sync-INIT-Console
 
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
 
@@ -183,28 +210,25 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Write-Host ' '
 
     # [S]ervice per avviare la modalita servizio
-    if ($SCELTA -eq "s") {
-        Kill-RdConsole
+    if ($SCELTA -eq "s") {Stop
         Restart-Service  OSLRDServer
         Get-Service OSLRDServer
     }
 
     #[C]onsole per avviare la modalita console
-    if ($SCELTA -eq "c") { 
-        Kill-RdConsole
-        Kill-RdService
+    if ($SCELTA -eq "c") { Stop
+        Stop-RdService
         Start-Process $pathConsole -Verb RunAs 
     }
     #[K]ill per arrestare il servizio o console e OverOne
-    if ($SCELTA -eq "k") { 
-        Kill-RdConsole
-        Kill-RdService
-        Kill-OverOneMonitoring      
+    if ($SCELTA -eq "k") { Stop
+        Stop-RdService
+        Stop-OverOneMonitoring      
         Write-Host "Servizi FERMI"
     }
     #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
     if ($SCELTA -eq "o") {
-        Kill-OverOneMonitoring
+        Stop-OverOneMonitoring
         Remove-Item -Path $pathLogOverOne -Force
         Start-Service  OverOneMonitoringWindowsService     
         TIMEOUT /t 5
@@ -216,13 +240,13 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         $IP = Read-Host -Prompt 'Inserisci IP da modificare '
         $iniDict.Config.serverTCPListener = $IP     
         # Salvo la modifica, scrivendola nel file 
-        Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
+        Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
         #Ricarico il file in memoria
-        $iniDict = MEMInit $pathInit
+        $iniDict = MEMInit $pathInitService
     }
     #[INIT] per la lettura del Init di OSLRDServer
     if ($SCELTA -eq "INIT") {       
-        notepad $pathInit  
+        notepad $pathInitService  
     }
     #[R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
     if ($SCELTA -eq "R") {       
@@ -260,9 +284,13 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
             }       
             #END FOR
         } #Write File
-        Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
+        Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
     }
-    if ($SCELTA -eq "x") {          
+    if ($SCELTA -eq "x") {    
+        #Garbage collection
+        if (($i % 200) -eq 0) {
+            [System.GC]::Collect()
+        }      
         Exit
     }
     start-sleep 3
