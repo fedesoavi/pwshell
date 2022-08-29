@@ -12,6 +12,7 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     Exit
 }
 
+Clear-Host
 function MEMInit {
     param(
         [Parameter (Mandatory = $false)] [String]$Directory
@@ -193,6 +194,14 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Write-Host '
       Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
 
+    # scrivo i dettagli del firewall
+    #Get-NetFirewallProfile | Format-Table Name, Enabled
+
+    #scrivo i servizi che runnano
+    Get-Service OverOneMonitoringWindowsService 
+    Get-Service OSLRDServer 
+    Get-NetFirewallProfile | Format-Table Name, Enabled
+
     Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
     Write-Host "                                                                                                  
     Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
@@ -210,18 +219,21 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Write-Host ' '
 
     # [S]ervice per avviare la modalita servizio
-    if ($SCELTA -eq "s") {Stop
+    if ($SCELTA -eq "s") {
+        Stop-RdConsole
         Restart-Service  OSLRDServer
         Get-Service OSLRDServer
     }
 
     #[C]onsole per avviare la modalita console
-    if ($SCELTA -eq "c") { Stop
+    if ($SCELTA -eq "c") { 
+        Stop-RdConsole
         Stop-RdService
         Start-Process $pathConsole -Verb RunAs 
     }
     #[K]ill per arrestare il servizio o console e OverOne
-    if ($SCELTA -eq "k") { Stop
+    if ($SCELTA -eq "k") { 
+        Stop-RdConsole
         Stop-RdService
         Stop-OverOneMonitoring      
         Write-Host "Servizi FERMI"
