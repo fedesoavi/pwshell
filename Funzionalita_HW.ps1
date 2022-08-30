@@ -158,6 +158,14 @@ function Sync-INIT-Console {
     }
 }
 
+Write-Host "                                                         
+ ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
+██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
+██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
+██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
+ ██████  ███████ ███████ ███████ ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██                                                                                                                                                                                               
+"
+
 #Path Application
 $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
 $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
@@ -192,14 +200,13 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     # leggo Id sheda di rete attiva e reverso l'indirizzo ip e dettagli
 
     Write-Host '
-      Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin
+      Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin 
 
     # scrivo i dettagli del firewall
     #Get-NetFirewallProfile | Format-Table Name, Enabled
 
-    #scrivo i servizi che runnano
-    Get-Service OverOneMonitoringWindowsService 
-    Get-Service OSLRDServer 
+    #scrivo i servizi che runnano    
+    Get-Service OverOneMonitoringWindowsService, OSLRDServer | Format-Table Name, Status
     Get-NetFirewallProfile | Format-Table Name, Enabled
 
     Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
@@ -302,7 +309,8 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         #Garbage collection
         if (($i % 200) -eq 0) {
             [System.GC]::Collect()
-        }      
+        }   
+        Clear-Host   
         Exit
     }
     start-sleep 3
