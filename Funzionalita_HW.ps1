@@ -4,6 +4,24 @@
 #TODO eccezioni su porte firewall
 #TODO auto firewall
 #TODO get Machine LIST and check firewall
+
+#dsn 
+<# $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
+$PathDSN =  join-Path -Path $PathDSN -childpath '\GP90Next\DSN\GP90.dsn'
+
+
+
+   try {
+       $DSNGP90 = MEMInit $PathDSN
+      
+    }
+    catch [System.Net.WebException],[System.IO.IOException] {
+       
+    }catch {
+     $DSNGP90 = 'File GP90.dsn non trovato'
+    
+    } #>
+
 #--------------------------------------------------
 
 #Start in Admin mode
@@ -11,6 +29,8 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
 }
+
+
 
 Clear-Host
 function MEMInit {
@@ -158,13 +178,7 @@ function Sync-INIT-Console {
     }
 }
 
-Write-Host "                                                         
- ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
-██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
-██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
-██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
- ██████  ███████ ███████ ███████ ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██                                                                                                                                                                                               
-"
+
 
 #Path Application
 $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
@@ -184,7 +198,15 @@ $IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-
 
 Sync-INIT-Console
 
+
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
+    Write-Host "                                                         
+  ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
+ ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
+ ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
+ ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
+  ██████  ███████ ███████ ███████ ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██                                                                                                                                                                                               
+"
 
     #Garbage collection
     if (($i % 200) -eq 0) {
@@ -205,8 +227,10 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     # scrivo i dettagli del firewall
     #Get-NetFirewallProfile | Format-Table Name, Enabled
 
-    #scrivo i servizi che runnano    
+    #scrivo i servizi che runnano 
+   
     Get-Service OverOneMonitoringWindowsService, OSLRDServer | Format-Table Name, Status
+
     Get-NetFirewallProfile | Format-Table Name, Enabled
 
     Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
@@ -271,6 +295,67 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     if ($SCELTA -eq "R") {       
         get-executionpolicy
         set-executionpolicy RemoteSigned    
+    }
+#TODO REFACTOR# conpilazione automatica DSN
+    if ($SCELTA -eq "AU") {       
+        IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
+            Write-Host "  
+         Non Esiste il GP90.dsn, probabilmente
+         " -ForegroundColor red
+        }
+        else {
+            $iniDict.Config.serverDB = $DSNGP90.ODBC.SERVER
+            $iniDict.Config.database = $DSNGP90.ODBC.DATABASE
+            $iniDict.Config.username = $DSNGP90.ODBC.UID
+            $iniDict.Config.password = $DSNGP90.ODBC.password
+            $iniDict.Config.ServerTCPListener = $IndirizzoIP.IPAddress
+            $iniDict.Task1.secondi = 15
+            $iniDict.Task2.secondi = 19
+            Write-Host "  
+          Riepilogo delle informazzioni che verranno scritte dentro init : " -ForegroundColor green
+            $iniDict.Config
+            Start-Sleep 10
+            try {
+                Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
+                $iniDict = MEMInit $pathInit
+                Write-Host "               
+              Scrittura Eseguita" -ForegroundColor green      
+            }
+            catch [System.Net.WebException], [System.IO.IOException] {       
+            }
+            catch {
+                Write-Host "  
+             Scrittura non risucita" -ForegroundColor red    
+            }
+        }
+    }
+#TODO REFACTOR# ON/OFF segnali su tabella
+    if ($SCELTA -eq "TAB") {     
+        IF (($iniDict.Config.UsoCollegamentoUnico -eq -1) -or ( $iniDict.Config.segnaliSuTabella -eq -1) ) {            
+            $iniDict.Config.UsoCollegamentoUnico = 0
+            $iniDict.Config.segnaliSuTabella = 0
+            Write-Host "   Disabilitata " -ForegroundColor RED
+        }
+        else {
+            $iniDict.Config.UsoCollegamentoUnico = -1
+            $iniDict.Config.segnaliSuTabella = -1
+            Write-Host "   Abilitata " -ForegroundColor green
+        }
+        Write-Host "  
+           Modifica effettuata, tra poco verrà effettuata la scrittura su File " -ForegroundColor white
+        Start-Sleep 10
+        try {
+            Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
+            $iniDict = MEMInit $pathInit
+            Write-Host "             
+             Scrittura Eseguita" -ForegroundColor green      
+        }
+        catch [System.Net.WebException], [System.IO.IOException] {       
+        }
+        catch {
+            Write-Host "
+           Scrittura non risucita" -ForegroundColor red    
+        }
     }
     #[task] show service
     if ($SCELTA -eq "task") {       
