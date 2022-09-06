@@ -4,6 +4,7 @@
 #TODO eccezioni su porte firewall
 #TODO auto firewall
 #TODO get Machine LIST and check firewall
+#TODO check if overone is installed
 
 #dsn 
 <# $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
@@ -12,7 +13,7 @@ $PathDSN =  join-Path -Path $PathDSN -childpath '\GP90Next\DSN\GP90.dsn'
 
 
    try {
-       $DSNGP90 = MEMInit $PathDSN
+       $DSNGP90 = Get-Ini $PathDSN
       
     }
     catch [System.Net.WebException],[System.IO.IOException] {
@@ -33,27 +34,27 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 
 
 Clear-Host
-function MEMInit {
+function Get-Ini {
     param(
         [Parameter (Mandatory = $false)] [String]$Directory
     )
     
     $init = @{}
     switch -regex -file $Directory {
-        “^\[(.+)\]” {
+        '^\[(.+)\]' {
             # Section
             $section = $matches[1]
             $init[$section] = @{}
             $CommentCount = 0
         }
-        “^(;.*)$” {
+        '^(;.*)$' {
             # Comment
             $value = $matches[1]
             $CommentCount = $CommentCount + 1
-            $name = “Comment” + $CommentCount
+            $name = 'Comment' + $CommentCount
             $init[$section][$name] = $value
         }
-        “(.+?)\s*=(.*)” {
+        '(.+?)\s*=(.*)' {
             # Key
             $name, $value = $matches[1..2]
             $init[$section][$name] = $value
@@ -73,15 +74,15 @@ function Write-INIT-OSLRDServer {
     Remove-Item -Path $Directory -Force
     $outFile = New-Item -ItemType file -Path $Directory
     foreach ($i in $InputObject.keys) {
-        if (!($($InputObject[$i].GetType().Name) -eq “Hashtable”)) {
+        if (!($($InputObject[$i].GetType().Name) -eq 'Hashtable')) {
             #No Sections
             Add-Content -Path $outFile -Value “$i=$($InputObject[$i])”
         }
         else {
             #Sections
-            Add-Content -Path $outFile -Value “[$i]”
+            Add-Content -Path $outFile -Value '[$i]'
             Foreach ($j in ($InputObject[$i].keys | Sort-Object)) {
-                if ($j -match “^Comment[\d]+”) {
+                if ($j -match '^Comment[\d]+') {
                     Add-Content -Path $outFile -Value “$($InputObject[$i][$j])”
                 }
                 else {
@@ -192,21 +193,21 @@ $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildI
 #Path exe
 $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-$iniDict = MEMInit $pathInitService
+$iniDict = Get-Ini $pathInitService
 
-$IndirizzoIP = Get-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" }).InterfaceIndex
+#$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
+$IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
 
 Sync-INIT-Console
 
-
 FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
-    Write-Host "                                                         
+    Write-Host '                                                         
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
  ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
  ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
  ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
-  ██████  ███████ ███████ ███████ ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██                                                                                                                                                                                               
-"
+  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██                                                                                                                                                                                               
+'
 
     #Garbage collection
     if (($i % 200) -eq 0) {
@@ -217,23 +218,18 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
 
     Write-Host '
-      Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
-
-    # leggo Id sheda di rete attiva e reverso l'indirizzo ip e dettagli
-
+    Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
     Write-Host '
-      Indirizzi IP del PC attuali: ' $IndirizzoIP.IPAddress $IndirizzoIP.InterfaceAlias $IndirizzoIP.PrefixOrigin 
+    Indirizzo IP del PC: ' $IndirizzoIP
 
-    # scrivo i dettagli del firewall
-    #Get-NetFirewallProfile | Format-Table Name, Enabled
 
-    #scrivo i servizi che runnano 
-   
+
+    if (Get-Service OSLRDServer) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
+
     Get-Service OverOneMonitoringWindowsService, OSLRDServer | Format-Table Name, Status
 
-    Get-NetFirewallProfile | Format-Table Name, Enabled
-
-    Write-Host " Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
+    Write-Host " 
+    Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
     Write-Host "                                                                                                  
     Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
     Digitare [C]onsole per avviare la modalita console                                              
@@ -285,7 +281,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         # Salvo la modifica, scrivendola nel file 
         Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
         #Ricarico il file in memoria
-        $iniDict = MEMInit $pathInitService
+        $iniDict = Get-Ini $pathInitService
     }
     #[INIT] per la lettura del Init di OSLRDServer
     if ($SCELTA -eq "INIT") {       
@@ -296,7 +292,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         get-executionpolicy
         set-executionpolicy RemoteSigned    
     }
-#TODO REFACTOR# conpilazione automatica DSN
+    #TODO REFACTOR# conpilazione automatica DSN
     if ($SCELTA -eq "AU") {       
         IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
             Write-Host "  
@@ -317,7 +313,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
             Start-Sleep 10
             try {
                 Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
-                $iniDict = MEMInit $pathInit
+                $iniDict = Get-Ini $pathInit
                 Write-Host "               
               Scrittura Eseguita" -ForegroundColor green      
             }
@@ -329,7 +325,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
             }
         }
     }
-#TODO REFACTOR# ON/OFF segnali su tabella
+    #TODO REFACTOR# ON/OFF segnali su tabella
     if ($SCELTA -eq "TAB") {     
         IF (($iniDict.Config.UsoCollegamentoUnico -eq -1) -or ( $iniDict.Config.segnaliSuTabella -eq -1) ) {            
             $iniDict.Config.UsoCollegamentoUnico = 0
@@ -346,7 +342,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Start-Sleep 10
         try {
             Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
-            $iniDict = MEMInit $pathInit
+            $iniDict = Get-Ini $pathInit
             Write-Host "             
              Scrittura Eseguita" -ForegroundColor green      
         }
@@ -364,6 +360,27 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, state, status, starttype
         Pause
     }
+
+    #[I]nfo get service Info and firewall
+    if ($SCELTA -eq "I") {
+
+        # Purpose: To check whether a service is installed
+        Clear-Host
+        $sName = "OSLRDServer"
+        $service = Get-Service -display $sName -ErrorAction SilentlyContinue
+        If ( -not $service ) {
+            $sName + " is not installed on this computer. `n
+                Did you really mean: " + $sName 
+        }
+        else {
+            $sName + " is installed."
+            $sName + "’s status is: " + $service.Status 
+        }
+        #Get-Service OverOneMonitoringWindowsService, OSLRDServer | Format-Table Name, Status
+        #Get-NetFirewallProfile | Format-Table Name, Enabled
+        Pause
+    }
+    
     #[E]dit per modificare INIT di OSLRDserver
     if ($SCELTA -eq "E") {          
         FOR ($Continuo = -1; $Continuo -lt 10; $Continuo++) {
