@@ -71,10 +71,11 @@ function Get-Service-Status {
     $service = Get-Service -display $sName -ErrorAction SilentlyContinue
     
     If ( -not $service ) {
-        Write-Host $sName  ' is not installed on this computer.'}
-        else {
-            if ($service.Status -eq 'Running') { Write-Host $sName   'Service is running' -ForegroundColor green } else { Write-Host $sName 'Service is not running' -ForegroundColor Red }
-        }
+        Write-Host $sName  ' is not installed on this computer.'
+    }
+    else {
+        if ($service.Status -eq 'Running') { Write-Host $sName   'Service is running' -ForegroundColor green } else { Write-Host $sName 'Service is not running' -ForegroundColor Red }
+    }
     
     Remove-Variable sName
 }
@@ -196,59 +197,60 @@ function Sync-INIT-Console {
     }
 }
 
+#Main-function
+function main {
 
+    #Path Application
+    $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
+    $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
 
-#Path Application
-$pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
-$pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
+    #Path file
+    $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+    $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
+    $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
 
-#Path file
-$pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
-$pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
-$pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
+    #Path exe
+    $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-#Path exe
-$pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
+    $iniDict = Get-Ini $pathInitService
 
-$iniDict = Get-Ini $pathInitService
+    #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
+    $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
 
-#$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
-$IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
+    Sync-INIT-Console
 
-Sync-INIT-Console
-
-FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
-    Write-Host '                                                         
+    FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
+        Write-Host '                                                         
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
  ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
  ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
  ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
   ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██'
 
-    #Garbage collection
-    if (($i % 200) -eq 0) {
-        [System.GC]::Collect()
-    }
+        #Garbage collection
+        if (($i % 200) -eq 0) {
+            [System.GC]::Collect()
+        }
 
 
-    Write-Host '
+        Write-Host '
     Segnali su tabella'
-    if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
-    if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
+        if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
+        if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
 
-    Write-Host '
+        Write-Host '
     Indirizzi IP:'
-    Write-Host 'Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
-    Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
+        Write-Host 'Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+        Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
 
-    Write-Host '
+        Write-Host '
     Servizi:'
-     Get-Service-Status('OSLRDServer')
-     Get-Service-Status('OverOne Monitoring Service')
+        Get-Service-Status('OSLRDServer')
+        Get-Service-Status('OverOne Monitoring Service')
 
-    Write-Host " 
+        Write-Host " 
     Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
-    Write-Host "                                                                                                  
+        Write-Host "                                                                                                  
     Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
     Digitare [C]onsole per avviare la modalita console                                              
     Digitare [S]ervice per avviare la modalita servizio                                             
@@ -260,166 +262,170 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     Digitare [R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
     " 
     
-    $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
-    Write-Host ' '
+        $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
+        Write-Host ' '
 
-    # [S]ervice per avviare la modalita servizio
-    if ($SCELTA -eq "s") {
-        Stop-RdConsole
-        Restart-Service  OSLRDServer
-        Get-Service OSLRDServer
-    }
+        # [S]ervice per avviare la modalita servizio
+        if ($SCELTA -eq "s") {
+            Stop-RdConsole
+            Restart-Service  OSLRDServer
+            Get-Service OSLRDServer
+        }
 
-    #[C]onsole per avviare la modalita console
-    if ($SCELTA -eq "c") { 
-        Stop-RdConsole
-        Stop-RdService
-        Start-Process $pathConsole -Verb RunAs 
-    }
+        #[C]onsole per avviare la modalita console
+        if ($SCELTA -eq "c") { 
+            Stop-RdConsole
+            Stop-RdService
+            Start-Process $pathConsole -Verb RunAs 
+        }
 
-    #[K]ill per arrestare il servizio o console e OverOne
-    if ($SCELTA -eq "k") { 
-        Stop-RdConsole
-        Stop-RdService
-        Stop-OverOneMonitoring      
-        Write-Host "Servizi FERMI"
-    }
+        #[K]ill per arrestare il servizio o console e OverOne
+        if ($SCELTA -eq "k") { 
+            Stop-RdConsole
+            Stop-RdService
+            Stop-OverOneMonitoring      
+            Write-Host "Servizi FERMI"
+        }
 
-    #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
-    if ($SCELTA -eq "o") {
-        Stop-OverOneMonitoring
-        Remove-Item -Path $pathLogOverOne -Force
-        Start-Sleep 2
-        Start-Service  OverOneMonitoringWindowsService     
-        Start-Sleep 2
-        Invoke-Item $pathLogOverOne
-    }
+        #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
+        if ($SCELTA -eq "o") {
+            Stop-OverOneMonitoring
+            Remove-Item -Path $pathLogOverOne -Force
+            Start-Sleep 2
+            Start-Service  OverOneMonitoringWindowsService     
+            Start-Sleep 2
+            Invoke-Item $pathLogOverOne
+        }
 
-    #[INIT] per la lettura del Init di OSLRDServer
-    if ($SCELTA -eq "INIT") {       
-        notepad $pathInitService  
-    }
+        #[INIT] per la lettura del Init di OSLRDServer
+        if ($SCELTA -eq "INIT") {       
+            notepad $pathInitService  
+        }
 
-#############################################################################
-#                da Controllare                                             #
-#############################################################################
+        #############################################################################
+        #                da Controllare                                             #
+        #############################################################################
 
-    #[TCP] Per modificare TCPListener All'interno del init
-    if ($SCELTA -eq "TCP") {       
+        #[TCP] Per modificare TCPListener All'interno del init
+        if ($SCELTA -eq "TCP") {       
 
-        $IP = Read-Host -Prompt 'Inserisci IP da modificare '
-        $iniDict.Config.serverTCPListener = $IP     
-        # Salvo la modifica, scrivendola nel file 
-        Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
-        #Ricarico il file in memoria
-        $iniDict = Get-Ini $pathInitService
-    }
+            $IP = Read-Host -Prompt 'Inserisci IP da modificare '
+            $iniDict.Config.serverTCPListener = $IP     
+            # Salvo la modifica, scrivendola nel file 
+            Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
+            #Ricarico il file in memoria
+            $iniDict = Get-Ini $pathInitService
+        }
 
-    #[R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
-    if ($SCELTA -eq "R") {       
-        get-executionpolicy
-        set-executionpolicy RemoteSigned    
-    }
+        #[R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
+        if ($SCELTA -eq "R") {       
+            get-executionpolicy
+            set-executionpolicy RemoteSigned    
+        }
 
-    #TODO REFACTOR# conpilazione automatica DSN
-    if ($SCELTA -eq "AU") {       
-        IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
-            Write-Host "  
+        #TODO REFACTOR# conpilazione automatica DSN
+        if ($SCELTA -eq "AU") {       
+            IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
+                Write-Host "  
          Non Esiste il GP90.dsn, probabilmente
          " -ForegroundColor red
-        }
-        else {
-            $iniDict.Config.serverDB = $DSNGP90.ODBC.SERVER
-            $iniDict.Config.database = $DSNGP90.ODBC.DATABASE
-            $iniDict.Config.username = $DSNGP90.ODBC.UID
-            $iniDict.Config.password = $DSNGP90.ODBC.password
-            $iniDict.Config.ServerTCPListener = $IndirizzoIP.IPAddress
-            $iniDict.Task1.secondi = 15
-            $iniDict.Task2.secondi = 19
-            Write-Host "  
+            }
+            else {
+                $iniDict.Config.serverDB = $DSNGP90.ODBC.SERVER
+                $iniDict.Config.database = $DSNGP90.ODBC.DATABASE
+                $iniDict.Config.username = $DSNGP90.ODBC.UID
+                $iniDict.Config.password = $DSNGP90.ODBC.password
+                $iniDict.Config.ServerTCPListener = $IndirizzoIP.IPAddress
+                $iniDict.Task1.secondi = 15
+                $iniDict.Task2.secondi = 19
+                Write-Host "  
           Riepilogo delle informazzioni che verranno scritte dentro init : " -ForegroundColor green
-            $iniDict.Config
+                $iniDict.Config
+                Start-Sleep 10
+                try {
+                    Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
+                    $iniDict = Get-Ini $pathInit
+                    Write-Host "               
+              Scrittura Eseguita" -ForegroundColor green      
+                }
+                catch [System.Net.WebException], [System.IO.IOException] {       
+                }
+                catch {
+                    Write-Host "  
+             Scrittura non risucita" -ForegroundColor red    
+                }
+            }
+        }
+
+        #TODO REFACTOR# ON/OFF segnali su tabella
+        if ($SCELTA -eq "TAB") {     
+            IF (($iniDict.Config.UsoCollegamentoUnico -eq -1) -or ( $iniDict.Config.segnaliSuTabella -eq -1) ) {            
+                $iniDict.Config.UsoCollegamentoUnico = 0
+                $iniDict.Config.segnaliSuTabella = 0
+                Write-Host "   Disabilitata " -ForegroundColor RED
+            }
+            else {
+                $iniDict.Config.UsoCollegamentoUnico = -1
+                $iniDict.Config.segnaliSuTabella = -1
+                Write-Host "   Abilitata " -ForegroundColor green
+            }
+            Write-Host "  
+           Modifica effettuata, tra poco verrà effettuata la scrittura su File " -ForegroundColor white
             Start-Sleep 10
             try {
                 Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
                 $iniDict = Get-Ini $pathInit
-                Write-Host "               
-              Scrittura Eseguita" -ForegroundColor green      
+                Write-Host "             
+             Scrittura Eseguita" -ForegroundColor green      
             }
             catch [System.Net.WebException], [System.IO.IOException] {       
             }
             catch {
-                Write-Host "  
-             Scrittura non risucita" -ForegroundColor red    
+                Write-Host "
+           Scrittura non risucita" -ForegroundColor red    
             }
         }
+
+        #[E]dit per modificare INIT di OSLRDserver
+        if ($SCELTA -eq "E") {          
+            FOR ($Continuo = -1; $Continuo -lt 10; $Continuo++) {
+                Write-Host "Quale TAG del file INIT vuoi modificare ? " -ForegroundColor green   
+                $iniDict.keys
+
+                $TAG = Read-Host -Prompt "Quale vuoi modificare ? "
+                Write-Host "Perfetto, il TAG contiene questi valori:  " -ForegroundColor green
+                $iniDict[$TAG]
+
+                Write-Host "Cosa vuoi modificare ? " -ForegroundColor green
+                $MOD = Read-Host -Prompt "indica il TAG:  "
+                #Write-Host "Valore ? " -ForegroundColor green
+                $VAL = Read-Host -Prompt  "Quale Valore: "
+
+                $iniDict[$TAG][$MOD] = $VAL
+                Clear-Host
+                $iniDict[$TAG]
+                $YESNO = Read-Host Prompt  "Continuare a fare delle modifiche ? [S/N]: "
+                if ($YESNO -ne 'S') {
+                    $Continuo = 11
+                }       
+                #END FOR
+            } #Write File
+            Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
+        }
+
+        #[X] chiude script
+        if ($SCELTA -eq "x") {    
+            #Garbage collection
+            if (($i % 200) -eq 0) {
+                [System.GC]::Collect()
+            }   
+            Clear-Host   
+            Exit
+        }
+        start-sleep 3
+        Clear-Host
     }
 
-    #TODO REFACTOR# ON/OFF segnali su tabella
-    if ($SCELTA -eq "TAB") {     
-        IF (($iniDict.Config.UsoCollegamentoUnico -eq -1) -or ( $iniDict.Config.segnaliSuTabella -eq -1) ) {            
-            $iniDict.Config.UsoCollegamentoUnico = 0
-            $iniDict.Config.segnaliSuTabella = 0
-            Write-Host "   Disabilitata " -ForegroundColor RED
-        }
-        else {
-            $iniDict.Config.UsoCollegamentoUnico = -1
-            $iniDict.Config.segnaliSuTabella = -1
-            Write-Host "   Abilitata " -ForegroundColor green
-        }
-        Write-Host "  
-           Modifica effettuata, tra poco verrà effettuata la scrittura su File " -ForegroundColor white
-        Start-Sleep 10
-        try {
-            Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
-            $iniDict = Get-Ini $pathInit
-            Write-Host "             
-             Scrittura Eseguita" -ForegroundColor green      
-        }
-        catch [System.Net.WebException], [System.IO.IOException] {       
-        }
-        catch {
-            Write-Host "
-           Scrittura non risucita" -ForegroundColor red    
-        }
-    }
-
-    #[E]dit per modificare INIT di OSLRDserver
-    if ($SCELTA -eq "E") {          
-        FOR ($Continuo = -1; $Continuo -lt 10; $Continuo++) {
-            Write-Host "Quale TAG del file INIT vuoi modificare ? " -ForegroundColor green   
-            $iniDict.keys
-
-            $TAG = Read-Host -Prompt "Quale vuoi modificare ? "
-            Write-Host "Perfetto, il TAG contiene questi valori:  " -ForegroundColor green
-            $iniDict[$TAG]
-
-            Write-Host "Cosa vuoi modificare ? " -ForegroundColor green
-            $MOD = Read-Host -Prompt "indica il TAG:  "
-            #Write-Host "Valore ? " -ForegroundColor green
-            $VAL = Read-Host -Prompt  "Quale Valore: "
-
-            $iniDict[$TAG][$MOD] = $VAL
-            Clear-Host
-            $iniDict[$TAG]
-            $YESNO = Read-Host Prompt  "Continuare a fare delle modifiche ? [S/N]: "
-            if ($YESNO -ne 'S') {
-                $Continuo = 11
-            }       
-            #END FOR
-        } #Write File
-        Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
-    }
-
-    #[X] chiude script
-    if ($SCELTA -eq "x") {    
-        #Garbage collection
-        if (($i % 200) -eq 0) {
-            [System.GC]::Collect()
-        }   
-        Clear-Host   
-        Exit
-    }
-    start-sleep 3
-    Clear-Host
 }
+
+main
