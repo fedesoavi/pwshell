@@ -1,30 +1,4 @@
 ﻿
-
-#--------------------------------------------------
-#TODO eccezioni su porte firewall
-#TODO auto firewall
-#TODO get Machine LIST and check firewall
-#TODO check if overone is installed
-
-#dsn 
-<# $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
-$PathDSN =  join-Path -Path $PathDSN -childpath '\GP90Next\DSN\GP90.dsn'
-
-
-
-   try {
-       $DSNGP90 = Get-Ini $PathDSN
-      
-    }
-    catch [System.Net.WebException],[System.IO.IOException] {
-       
-    }catch {
-     $DSNGP90 = 'File GP90.dsn non trovato'
-    
-    } #>
-
-#--------------------------------------------------
-
 #Start in Admin mode
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
@@ -252,59 +226,89 @@ function main {
     Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
         Write-Host "                                                                                                  
     Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
-    Digitare [C]onsole per avviare la modalita console                                              
-    Digitare [S]ervice per avviare la modalita servizio                                             
-    Digitare [K]ill per arrestare il servizio o console e OverOne                                   
-    Digitare [O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG              
-    Digitare [TCP] Per modificare TCPListener All'interno del init                                  
-    Digitare [E]dit per modificare INIT di OSLRDserver                                              
-    Digitare [INIT] per la lettura del Init di OSLRDServer                                          
-    Digitare [R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
+    - Avviare OSLRDServer in [C]onsole                                              
+    - Avviare [S]ervizio OSLRDServer                                    
+    - [K]illare tutti i servizi                              
+    - Riavviare [O]verOneMonitoring, cancello il LOG e lo apro                                                        
+    - Apro [I]nit di OSLRDServer                                          
     " 
+        #Digitare [TCP] Per modificare TCPListener All'interno del init                                  
+        #Digitare [E]dit per modificare INIT di OSLRDserver   
     
-        $SCELTA = Read-Host -Prompt "   Digitare la LETTERA del COMANDO: "
-        Write-Host ' '
+        write-output "Digitare la LETTERA del COMANDO:"
+        $key = $Host.UI.RawUI.ReadKey()
+        Write-Host''   
 
-        # [S]ervice per avviare la modalita servizio
-        if ($SCELTA -eq "s") {
-            Stop-RdConsole
-            Restart-Service  OSLRDServer
-            Get-Service OSLRDServer
-        }
+        Switch ($key.Character) {
+            S {
+                # [S]ervice per avviare la modalita servizio
+                Stop-RdConsole
+                Restart-Service  OSLRDServer
+                Get-Service OSLRDServer
+            }
+            C {########################################## NOT WORKING
+                #[C]onsole per avviare la modalita console
+                # Stop-RdConsole
+                # Stop-RdService
+                # Start-Process $pathConsole -Verb RunAs
+            }
+            K {
+                #[K]ill per arrestare il servizio o console e OverOne
+                Stop-RdConsole
+                Stop-RdService
+                Stop-OverOneMonitoring      
+                Write-Host "Servizi FERMI"
+            }
+            O {
+                #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
+                Stop-OverOneMonitoring
+                Remove-Item -Path $pathLogOverOne -Force
+                Start-Sleep 2
+                Start-Service  OverOneMonitoringWindowsService  
+                Write-Host'Aspetto i segnali'   
+                Start-Sleep 5
+                Invoke-Item $pathLogOverOne
+            }
+            I {
+                #[I] per la lettura del Init di OSLRDServer   
+                notepad $pathInitService  
+            }
+            X {    
+                #[X] chiude script
+                #Garbage collection
+                if (($i % 200) -eq 0) {
+                    [System.GC]::Collect()
+                }   
+                Clear-Host   
+                Exit
+            }
+            default { write-host 'Invalid option' -ForegroundColor red }
+        } 
 
-        #[C]onsole per avviare la modalita console
-        if ($SCELTA -eq "c") { 
-            Stop-RdConsole
-            Stop-RdService
-            Start-Process $pathConsole -Verb RunAs 
-        }
+        
 
-        #[K]ill per arrestare il servizio o console e OverOne
-        if ($SCELTA -eq "k") { 
-            Stop-RdConsole
-            Stop-RdService
-            Stop-OverOneMonitoring      
-            Write-Host "Servizi FERMI"
-        }
-
-        #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
-        if ($SCELTA -eq "o") {
-            Stop-OverOneMonitoring
-            Remove-Item -Path $pathLogOverOne -Force
-            Start-Sleep 2
-            Start-Service  OverOneMonitoringWindowsService     
-            Start-Sleep 2
-            Invoke-Item $pathLogOverOne
-        }
-
-        #[INIT] per la lettura del Init di OSLRDServer
-        if ($SCELTA -eq "INIT") {       
-            notepad $pathInitService  
-        }
 
         #############################################################################
         #                da Controllare                                             #
         #############################################################################
+        #--------------------------------------------------
+        #TODO eccezioni su porte firewall
+        #TODO auto firewall
+        #TODO get Machine LIST and check firewall
+        #TODO check if overone is installed
+
+        #dsn 
+        <# $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
+        $PathDSN =  join-Path -Path $PathDSN -childpath '\GP90Next\DSN\GP90.dsn'
+            try {
+                $DSNGP90 = Get-Ini $PathDSN                
+                }
+                catch [System.Net.WebException],[System.IO.IOException] {                
+                }catch {
+                $DSNGP90 = 'File GP90.dsn non trovato'    
+                } #>
+
+        #--------------------------------------------------
 
         #[TCP] Per modificare TCPListener All'interno del init
         if ($SCELTA -eq "TCP") {       
@@ -413,16 +417,8 @@ function main {
             Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
         }
 
-        #[X] chiude script
-        if ($SCELTA -eq "x") {    
-            #Garbage collection
-            if (($i % 200) -eq 0) {
-                [System.GC]::Collect()
-            }   
-            Clear-Host   
-            Exit
-        }
-        start-sleep 3
+            
+        start-sleep 2
         Clear-Host
     }
 
