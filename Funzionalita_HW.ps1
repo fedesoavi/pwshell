@@ -223,8 +223,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
  ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
  ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
  ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
-  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██                                                                                                                                                                                               
-'
+  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██'
 
     #Garbage collection
     if (($i % 200) -eq 0) {
@@ -277,6 +276,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Stop-RdService
         Start-Process $pathConsole -Verb RunAs 
     }
+
     #[K]ill per arrestare il servizio o console e OverOne
     if ($SCELTA -eq "k") { 
         Stop-RdConsole
@@ -284,6 +284,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Stop-OverOneMonitoring      
         Write-Host "Servizi FERMI"
     }
+
     #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
     if ($SCELTA -eq "o") {
         Stop-OverOneMonitoring
@@ -293,6 +294,16 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         Start-Sleep 2
         Invoke-Item $pathLogOverOne
     }
+
+    #[INIT] per la lettura del Init di OSLRDServer
+    if ($SCELTA -eq "INIT") {       
+        notepad $pathInitService  
+    }
+
+#############################################################################
+#                da Controllare                                             #
+#############################################################################
+
     #[TCP] Per modificare TCPListener All'interno del init
     if ($SCELTA -eq "TCP") {       
 
@@ -303,15 +314,13 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         #Ricarico il file in memoria
         $iniDict = Get-Ini $pathInitService
     }
-    #[INIT] per la lettura del Init di OSLRDServer
-    if ($SCELTA -eq "INIT") {       
-        notepad $pathInitService  
-    }
+
     #[R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
     if ($SCELTA -eq "R") {       
         get-executionpolicy
         set-executionpolicy RemoteSigned    
     }
+
     #TODO REFACTOR# conpilazione automatica DSN
     if ($SCELTA -eq "AU") {       
         IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
@@ -345,6 +354,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
             }
         }
     }
+
     #TODO REFACTOR# ON/OFF segnali su tabella
     if ($SCELTA -eq "TAB") {     
         IF (($iniDict.Config.UsoCollegamentoUnico -eq -1) -or ( $iniDict.Config.segnaliSuTabella -eq -1) ) {            
@@ -373,20 +383,7 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
            Scrittura non risucita" -ForegroundColor red    
         }
     }
-    #[task] show service
-    if ($SCELTA -eq "task") {       
-        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLRDServer | Select-Object name, state, status, starttype
-        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OSLProcessiService | Select-Object name, state, status, starttype
-        Get-CimInstance  -ClassName win32_service | Where-Object Name -eq OverOneMonitoringWindowsService | Select-Object name, state, status, starttype
-        Pause
-    }
 
-    #[I]nfo get service Info and firewall
-    if ($SCELTA -eq "i") {
-
-        
-    }
-    
     #[E]dit per modificare INIT di OSLRDserver
     if ($SCELTA -eq "E") {          
         FOR ($Continuo = -1; $Continuo -lt 10; $Continuo++) {
@@ -413,6 +410,8 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         } #Write File
         Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
     }
+
+    #[X] chiude script
     if ($SCELTA -eq "x") {    
         #Garbage collection
         if (($i % 200) -eq 0) {
