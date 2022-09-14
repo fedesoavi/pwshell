@@ -63,6 +63,23 @@ function Get-Ini {
     return $init
 }
 
+function Get-Service-Status {
+    param(
+        [Parameter (Mandatory = $true)] $sName
+    )
+    # Purpose: To check whether a service is installed
+    $service = Get-Service -display $sName -ErrorAction SilentlyContinue
+    
+    If ( -not $service ) {
+        Write-Host $sName  ' is not installed on this computer.'}
+        else {
+            if ($service.Status -eq 'Running') { Write-Host $sName   'Service is running' -ForegroundColor green } else { Write-Host $sName 'Service is not running' -ForegroundColor Red }
+        }
+    
+    Remove-Variable sName
+}
+
+
 function Write-INIT-OSLRDServer {
     param(
         [Parameter (Mandatory = $false)] $ObjectCustom,
@@ -218,15 +235,14 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
 
     Write-Host '
-    Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+    Servizi:'
+    Write-Host 'Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+    Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
+
     Write-Host '
-    Indirizzo IP del PC: ' $IndirizzoIP
-
-
-
-    if (Get-Service OSLRDServer) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
-
-    Get-Service OverOneMonitoringWindowsService, OSLRDServer | Format-Table Name, Status
+    Servizi:'
+     Get-Service-Status('OSLRDServer')
+     Get-Service-Status('OverOne Monitoring Service')
 
     Write-Host " 
     Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
@@ -268,10 +284,10 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
     if ($SCELTA -eq "o") {
         Stop-OverOneMonitoring
-        Remove-Item -Path $pathLogOverOne -Force
+        #Remove-Item -Path $pathLogOverOne -Force
         Start-Service  OverOneMonitoringWindowsService     
-        TIMEOUT /t 5
-        Start-Process $pathLogOverOne
+        #TIMEOUT /t 15
+        #Start-Process $pathLogOverOne
     }
     #[TCP] Per modificare TCPListener All'interno del init
     if ($SCELTA -eq "TCP") {       
@@ -362,23 +378,9 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     }
 
     #[I]nfo get service Info and firewall
-    if ($SCELTA -eq "I") {
+    if ($SCELTA -eq "i") {
 
-        # Purpose: To check whether a service is installed
-        Clear-Host
-        $sName = "OSLRDServer"
-        $service = Get-Service -display $sName -ErrorAction SilentlyContinue
-        If ( -not $service ) {
-            $sName + " is not installed on this computer. `n
-                Did you really mean: " + $sName 
-        }
-        else {
-            $sName + " is installed."
-            $sName + "’s status is: " + $service.Status 
-        }
-        #Get-Service OverOneMonitoringWindowsService, OSLRDServer | Format-Table Name, Status
-        #Get-NetFirewallProfile | Format-Table Name, Enabled
-        Pause
+        
     }
     
     #[E]dit per modificare INIT di OSLRDserver
