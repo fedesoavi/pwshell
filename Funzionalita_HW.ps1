@@ -231,11 +231,14 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
         [System.GC]::Collect()
     }
 
-    if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host '  Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '  Segnali su Tabella disattivo' -ForegroundColor Red }
-    if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host '  Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '  Collegamento Unico disattivo' -ForegroundColor Red }
 
     Write-Host '
-    Servizi:'
+    Segnali su tabella'
+    if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
+    if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
+
+    Write-Host '
+    Indirizzi IP:'
     Write-Host 'Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
     Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
 
@@ -284,10 +287,11 @@ FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
     #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
     if ($SCELTA -eq "o") {
         Stop-OverOneMonitoring
-        #Remove-Item -Path $pathLogOverOne -Force
+        Remove-Item -Path $pathLogOverOne -Force
+        Start-Sleep 2
         Start-Service  OverOneMonitoringWindowsService     
-        #TIMEOUT /t 15
-        #Start-Process $pathLogOverOne
+        Start-Sleep 2
+        Invoke-Item $pathLogOverOne
     }
     #[TCP] Per modificare TCPListener All'interno del init
     if ($SCELTA -eq "TCP") {       
