@@ -240,20 +240,22 @@ function main {
         Write-Host''   
 
         Switch ($key.Character) {
-            S {
-                # [S]ervice per avviare la modalita servizio
+            S {# [S]ervice per avviare la modalita servizio
+                Write-Host 'Avvio Servizio...' -ForegroundColor Green
                 Stop-RdConsole
                 Restart-Service  OSLRDServer
                 Get-Service OSLRDServer
             }
-            C {########################################## NOT WORKING
+            C {
                 #[C]onsole per avviare la modalita console
-                # Stop-RdConsole
-                # Stop-RdService
-                # Start-Process $pathConsole -Verb RunAs
+                Write-Host 'Avvio Console...' -ForegroundColor Green
+                Stop-RdConsole
+                Stop-RdService
+                Start-Process $pathConsole -Verb RunAs
             }
             K {
                 #[K]ill per arrestare il servizio o console e OverOne
+                Write-Host 'Killo i servizi...' -ForegroundColor Green
                 Stop-RdConsole
                 Stop-RdService
                 Stop-OverOneMonitoring      
@@ -261,16 +263,18 @@ function main {
             }
             O {
                 #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
+                Write-Host 'Killo Overone...' -ForegroundColor Green
                 Stop-OverOneMonitoring
                 Remove-Item -Path $pathLogOverOne -Force
                 Start-Sleep 2
                 Start-Service  OverOneMonitoringWindowsService  
-                Write-Host'Aspetto i segnali'   
+                Write-Host 'Aspetto i segnali...'   
                 Start-Sleep 5
                 Invoke-Item $pathLogOverOne
             }
             I {
                 #[I] per la lettura del Init di OSLRDServer   
+                Write-Host 'Apro Init...' -ForegroundColor Green
                 notepad $pathInitService  
             }
             X {    
@@ -319,12 +323,6 @@ function main {
             Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
             #Ricarico il file in memoria
             $iniDict = Get-Ini $pathInitService
-        }
-
-        #[R]estricted, verificare stato restrizione policy esecuione script, ed impostarlo a REstricted
-        if ($SCELTA -eq "R") {       
-            get-executionpolicy
-            set-executionpolicy RemoteSigned    
         }
 
         #TODO REFACTOR# conpilazione automatica DSN
