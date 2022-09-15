@@ -143,37 +143,6 @@ Function Get-Service-Status {
     
     Remove-Variable sName
 }
-Function Write-INIT-OSLRDServer {
-    param(
-        [Parameter (Mandatory = $false)] $ObjectCustom,
-        [Parameter (Mandatory = $false)] [string] $Directory
-    )
-    
-    # START WRITE
-    $InputObject = $ObjectCustom
-    Remove-Item -Path $Directory -Force
-    $outFile = New-Item -ItemType file -Path $Directory
-    foreach ($i in $InputObject.keys) {
-        if (!($($InputObject[$i].GetType().Name) -eq 'Hashtable')) {
-            #No Sections
-            Add-Content -Path $outFile -Value “$i=$($InputObject[$i])”
-        }
-        else {
-            #Sections
-            Add-Content -Path $outFile -Value '[$i]'
-            Foreach ($j in ($InputObject[$i].keys | Sort-Object)) {
-                if ($j -match '^Comment[\d]+') {
-                    Add-Content -Path $outFile -Value “$($InputObject[$i][$j])”
-                }
-                else {
-                    Add-Content -Path $outFile -Value “$j=$($InputObject[$i][$j])”
-                }
-
-            }
-            Add-Content -Path $outFile -Value “”
-        }
-    } # END WRITE
-}
 Function Stop-RdConsole {
 
     # get appConsole process
@@ -269,8 +238,6 @@ Function main {
     #Path exe
     $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
-    $iniDict = Get-Ini $pathInitService
-
     #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
     $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
 
@@ -292,12 +259,12 @@ Function main {
 
         Write-Host '
     Segnali su tabella'
-        if ($iniDict.Config.segnaliSuTabella -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
-        if ($iniDict.Config.UsoCollegamentoUnico -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
+        if ((Get-IniValue $pathInitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
+        if ((Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico')  -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
 
         Write-Host '
     Indirizzi IP:'
-        Write-Host 'Indirizzo IP inserito dentro INIT:'  $iniDict.Config.serverTCPListener
+        Write-Host 'Indirizzo IP inserito dentro INIT:'  (Get-IniValue $pathInitService 'Config' 'serverTCPListener')
         Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
 
         Write-Host '
@@ -361,6 +328,13 @@ Function main {
                 Write-Host 'Apro Init...' -ForegroundColor Green
                 notepad $pathInitService  
             }
+            
+            L {
+                #[TCP] Per modificare TCPListener All'interno del init
+                $IP = Read-Host -Prompt 'Inserisci IP da modificare '
+                Set-IniValue $pathInitService 'Config' 'serverTCPListener' $IP    
+                Write-Host 'scritto ip...' -ForegroundColor Green               
+            }
             X {    
                 #[X] chiude script
                 #Garbage collection
@@ -398,16 +372,7 @@ Function main {
 
         #--------------------------------------------------
 
-        #[TCP] Per modificare TCPListener All'interno del init
-        if ($SCELTA -eq "TCP") {       
-
-            $IP = Read-Host -Prompt 'Inserisci IP da modificare '
-            $iniDict.Config.serverTCPListener = $IP     
-            # Salvo la modifica, scrivendola nel file 
-            Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
-            #Ricarico il file in memoria
-            $iniDict = Get-Ini $pathInitService
-        }
+        
 
         #TODO REFACTOR# conpilazione automatica DSN
         if ($SCELTA -eq "AU") {       
