@@ -5,39 +5,129 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     Exit
 }
 
-
-
+Add-Type -Namespace net.same2u.WinApiHelper -Name IniFile -MemberDefinition @'
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+  // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
+  public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+  public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
+'@
 Clear-Host
-function Get-Ini {
+Function Get-IniValue {
+    <#
+    .SYNOPSIS
+    Gets a given entry's value from an INI file, as a string.
+    Optionally *enumerates* elements of the file: 
+    * section names (if -Section is omitted) 
+    * entry keys in a given section (if -Key is omitted)
+    can be returned.
+    .EXAMPLE
+    Get-IniValue file.ini section1 key1
+    Returns the value of key key1 from section section1 in file file.ini.
+    Get-IniValue file.ini section1 key1 defaultVal1
+    Returns the value of key key1 from section section1 in file file.ini
+    and returns 'defaultVal1' if no such key exists.
+    .EXAMPLE
+    Get-IniValue file.ini section1
+    Returns the names of all keys in section section1 in file file.ini.
+    .EXAMPLE
+    Get-IniValue file.ini
+    Returns the names of all sections in file file.ini.
+    #>
+    [CmdletBinding()] 
     param(
-        [Parameter (Mandatory = $false)] [String]$Directory
+        [Parameter(Mandatory)] [string] $LiteralPath,
+        [string] $Section,
+        [string] $Key,
+        [string] $DefaultValue
     )
+    # Make sure that bona fide `null` is passed for omitted parameters, as only true `null`
+    # values are recognized as requests to enumerate section names / key names in a section.
+    $enumerate = $false
+    if (-not $PSBoundParameters.ContainsKey('Section')) { $Section = [NullString]::Value; $enumerate = $true }
+    if (-not $PSBoundParameters.ContainsKey('Key')) { $Key = [NullString]::Value; $enumerate = $true }
     
-    $init = @{}
-    switch -regex -file $Directory {
-        '^\[(.+)\]' {
-            # Section
-            $section = $matches[1]
-            $init[$section] = @{}
-            $CommentCount = 0
-        }
-        '^(;.*)$' {
-            # Comment
-            $value = $matches[1]
-            $CommentCount = $CommentCount + 1
-            $name = 'Comment' + $CommentCount
-            $init[$section][$name] = $value
-        }
-        '(.+?)\s*=(.*)' {
-            # Key
-            $name, $value = $matches[1..2]
-            $init[$section][$name] = $value
-        }
+    # Convert the path to an *absolute* one, since .NET's and the WinAPI's 
+    # current dir. is usually differs from PowerShell's.
+    $fullPath = Convert-Path -ErrorAction Stop -LiteralPath $LiteralPath
+    $bufferCharCount = 0
+    $bufferChunkSize = 1024 # start with reasonably large default value.
+    
+    do {
+        $bufferCharCount += $bufferChunkSize
+        # Note: We MUST use raw byte buffers, because [System.Text.StringBuilder] doesn't support
+        #       returning values with embedded NULs - see https://stackoverflow.com/a/15274893/45375
+        $buffer = New-Object byte[] ($bufferCharCount * 2)
+        # Note: The return value is the number of bytes copied excluding the trailing NUL / double NUL
+        #       It is only ever 0 if the buffer char. count is pointlessly small (1 with single NUL, 2 with double NUL)
+        $copiedCharCount = [net.same2u.WinApiHelper.IniFile]::GetPrivateProfileString($Section, $Key, $DefaultValue, $buffer, $bufferCharCount, $fullPath)
+    } while ($copiedCharCount -ne 0 -and $copiedCharCount -eq $bufferCharCount - (1, 2)[$enumerate]) # Check to see if the full value was retrieved or whether the buffer was too small.
+      
+    # Convert the byte buffer contents back to a string.
+    if ($copiedCharCount -eq 0) {
+        # Nothing was copied (non-existent section or entry or empty value) - return the empty string.
+        ''
     }
-    return $init
+    else {
+        # If entries are being enumerated (if -Section or -Key were omitted),
+        # the resulting string must be split by embedded NUL chars. to return the enumerated values as an *array*
+        # If a specific value is being retrieved, this splitting is an effective no-op.
+        [Text.Encoding]::Unicode.GetString($buffer, 0, ($copiedCharCount - (0, 1)[$enumerate]) * 2) -split "`0"
+    }
+}  
+Function Set-IniValue {
+    <#
+        .SYNOPSIS
+        Updates a given entry's value in an INI file.
+        Optionally *deletes* from the file:
+        * an entry (if -Value is omitted)
+        * a entire section (if -Key is omitted)
+        If the target file doesn't exist yet, it is created on demand,
+        with UTF-16LE enoding (the target file's diretory must already exist).
+        A preexisting file that doesn't have a UTF-16LE BOM is invariably
+        treated as ANSI-encoded.
+        .EXAMPLE
+        Set-IniValue file.ini section1 key1 value1
+        Updates the value of the entry whose key is key1 in section section1 in file
+        file.ini.
+        .EXAMPLE
+        Set-IniValue file.ini section1 key1
+        Deletes the entry whose key is key1 from section section1 in file file.ini.
+        .EXAMPLE
+        Set-IniValue file.ini section1
+        Deletes the entire section section1 from file file.ini.
+        #>
+    [CmdletBinding()] 
+    param(
+        [Parameter(Mandatory)] [string] $LiteralPath,
+        [Parameter(Mandatory)] [string] $Section,
+        [string] $Key,
+        [string] $Value
+    )
+    # Make sure that bona fide `null` is passed for omitted parameters, as only true `null`
+    # values are recognized as requests to *delete* entries.
+    if (-not $PSBoundParameters.ContainsKey('Key')) { $Key = [NullString]::Value }
+    if (-not $PSBoundParameters.ContainsKey('Value')) { $Value = [NullString]::Value }
+        
+    # Convert the path to an *absolute* one, since .NET's and the WinAPI's 
+    # current dir. is usually differs from PowerShell's.
+    $fullPath = 
+    try {
+        Convert-Path -ErrorAction Stop -LiteralPath $LiteralPath
+    }
+    catch {
+        # Presumably, file doesn't exist, so we create it on deman, as WriteProfileString() would,
+        # EXCEPT that we want to create a "Unicode" (UTF-16LE) file, whereas WriteProfileString() 
+        # - even when calling the Unicode version - ceates an *ANSI* file.
+        # Note: As WriteProfileString() does, we require that the *directory* for the new file alreay exist.
+        Set-Content -ErrorAction Stop -Encoding Unicode -LiteralPath $LiteralPath -Value @()
+              (Get-Item -LiteralPath $LiteralPath).FullName # Output the full, native path.
+    }
+    $ok = [net.same2u.WinApiHelper.IniFile]::WritePrivateProfileString($Section, $Key, $Value, $fullPath)
+    if (-not $ok) { Throw "Updating INI file failed: $fullPath" }
+        
 }
-
-function Get-Service-Status {
+Function Get-Service-Status {
     param(
         [Parameter (Mandatory = $true)] $sName
     )
@@ -53,9 +143,7 @@ function Get-Service-Status {
     
     Remove-Variable sName
 }
-
-
-function Write-INIT-OSLRDServer {
+Function Write-INIT-OSLRDServer {
     param(
         [Parameter (Mandatory = $false)] $ObjectCustom,
         [Parameter (Mandatory = $false)] [string] $Directory
@@ -86,8 +174,7 @@ function Write-INIT-OSLRDServer {
         }
     } # END WRITE
 }
-
-function Stop-RdConsole {
+Function Stop-RdConsole {
 
     # get appConsole process
     $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
@@ -106,8 +193,7 @@ function Stop-RdConsole {
     Remove-Variable appConsole
     
 }
-
-function Stop-RdService {
+Function Stop-RdService {
 
     # get RdService service
     $rdService = Get-Service OSLRDServer -ErrorAction SilentlyContinue
@@ -125,7 +211,7 @@ function Stop-RdService {
     Remove-Variable rdService
     
 }
-function Stop-OverOneMonitoring {
+Function Stop-OverOneMonitoring {
 
     # get OverOneMonitoring service
     $OverOneMonitoring = Get-Service OverOneMonitoringWindowsService -ErrorAction SilentlyContinue
@@ -136,8 +222,7 @@ function Stop-OverOneMonitoring {
     Remove-Variable OverOneMonitoring
     
 }
-
-function Get-AppPath {
+Function Get-AppPath {
     param ([Parameter (Mandatory = $true)] [string] $serviceName) 
 
     $service = Get-CimInstance -ClassName win32_service | Where-Object Name -eq $servicename
@@ -150,8 +235,7 @@ function Get-AppPath {
 
     return $serviceBinaryPath    
 }
-
-function Sync-INIT-Console {
+Function Sync-INIT-Console {
     #check init from service to appconsole if are equal
     if (Test-Path -Path $pathInitConsole -PathType Leaf) {
         if (!((Get-FileHash $pathInitService).Hash -eq (Get-FileHash $pathInitConsole).Hash)) {
@@ -170,9 +254,8 @@ function Sync-INIT-Console {
         Clear-Host
     }
 }
-
-#Main-function
-function main {
+#Main-Function
+Function main {
 
     #Path Application
     $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
@@ -240,7 +323,8 @@ function main {
         Write-Host''   
 
         Switch ($key.Character) {
-            S {# [S]ervice per avviare la modalita servizio
+            S {
+                # [S]ervice per avviare la modalita servizio
                 Write-Host 'Avvio Servizio...' -ForegroundColor Green
                 Stop-RdConsole
                 Restart-Service  OSLRDServer
