@@ -260,7 +260,7 @@ Function main {
         Write-Host '
     Segnali su tabella'
         if ((Get-IniValue $pathInitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
-        if ((Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico')  -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
+        if ((Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
 
         Write-Host '
     Indirizzi IP:'
@@ -280,7 +280,10 @@ Function main {
     - Avviare [S]ervizio OSLRDServer                                    
     - [K]illare tutti i servizi                              
     - Riavviare [O]verOneMonitoring, cancello il LOG e lo apro                                                        
-    - Apro [I]nit di OSLRDServer                                          
+    - Apro [I]nit di OSLRDServer
+    - Modifica TCP[L]istener All'interno del init
+    - ON/OFF segnali su [T]abella          
+    - [X] chiude script                                
     " 
         #Digitare [TCP] Per modificare TCPListener All'interno del init                                  
         #Digitare [E]dit per modificare INIT di OSLRDserver   
@@ -328,12 +331,27 @@ Function main {
                 Write-Host 'Apro Init...' -ForegroundColor Green
                 notepad $pathInitService  
             }
-            
             L {
                 #[TCP] Per modificare TCPListener All'interno del init
                 $IP = Read-Host -Prompt 'Inserisci IP da modificare '
                 Set-IniValue $pathInitService 'Config' 'serverTCPListener' $IP    
                 Write-Host 'scritto ip...' -ForegroundColor Green               
+            }
+            T {
+                # ON/OFF segnali su [T]abella
+                $usoCollegamentoUnico = Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' 
+                $segnaliSutabella = Get-IniValue $pathInitService 'Config' 'segnaliSuTabella'
+
+                if (($usoCollegamentoUnico -eq -1) -or ($segnaliSutabella -eq -1)) {
+                    Set-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' 0
+                    Set-IniValue $pathInitService 'Config' 'segnaliSuTabella' 0
+                    Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
+                }
+                else {
+                    Set-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' -1
+                    Set-IniValue $pathInitService 'Config' 'segnaliSuTabella' -1
+                    Write-Host "Abilitati segnali su tabella" -ForegroundColor green
+                }          
             }
             X {    
                 #[X] chiude script
@@ -408,63 +426,7 @@ Function main {
             }
         }
 
-        #TODO REFACTOR# ON/OFF segnali su tabella
-        if ($SCELTA -eq "TAB") {     
-            IF (($iniDict.Config.UsoCollegamentoUnico -eq -1) -or ( $iniDict.Config.segnaliSuTabella -eq -1) ) {            
-                $iniDict.Config.UsoCollegamentoUnico = 0
-                $iniDict.Config.segnaliSuTabella = 0
-                Write-Host "   Disabilitata " -ForegroundColor RED
-            }
-            else {
-                $iniDict.Config.UsoCollegamentoUnico = -1
-                $iniDict.Config.segnaliSuTabella = -1
-                Write-Host "   Abilitata " -ForegroundColor green
-            }
-            Write-Host "  
-           Modifica effettuata, tra poco verrà effettuata la scrittura su File " -ForegroundColor white
-            Start-Sleep 10
-            try {
-                Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
-                $iniDict = Get-Ini $pathInit
-                Write-Host "             
-             Scrittura Eseguita" -ForegroundColor green      
-            }
-            catch [System.Net.WebException], [System.IO.IOException] {       
-            }
-            catch {
-                Write-Host "
-           Scrittura non risucita" -ForegroundColor red    
-            }
-        }
-
-        #[E]dit per modificare INIT di OSLRDserver
-        if ($SCELTA -eq "E") {          
-            FOR ($Continuo = -1; $Continuo -lt 10; $Continuo++) {
-                Write-Host "Quale TAG del file INIT vuoi modificare ? " -ForegroundColor green   
-                $iniDict.keys
-
-                $TAG = Read-Host -Prompt "Quale vuoi modificare ? "
-                Write-Host "Perfetto, il TAG contiene questi valori:  " -ForegroundColor green
-                $iniDict[$TAG]
-
-                Write-Host "Cosa vuoi modificare ? " -ForegroundColor green
-                $MOD = Read-Host -Prompt "indica il TAG:  "
-                #Write-Host "Valore ? " -ForegroundColor green
-                $VAL = Read-Host -Prompt  "Quale Valore: "
-
-                $iniDict[$TAG][$MOD] = $VAL
-                Clear-Host
-                $iniDict[$TAG]
-                $YESNO = Read-Host Prompt  "Continuare a fare delle modifiche ? [S/N]: "
-                if ($YESNO -ne 'S') {
-                    $Continuo = 11
-                }       
-                #END FOR
-            } #Write File
-            Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInitService
-        }
-
-            
+        
         start-sleep 2
         Clear-Host
     }
