@@ -1,4 +1,11 @@
-﻿
+﻿##
+## controllo porte aperte per risolvere problemi con connessioni
+## netstat -a -n -o | Select-String "8080"
+
+## bisogna nullare il controllo su overone perchè non sempre è installato e altrimenti da errore
+###
+
+
 #Start in Admin mode
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
@@ -226,15 +233,22 @@ Function Sync-INIT-Console {
 #Main-Function
 Function main {
 
+    #check if Overone is installed
+    if ($null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\OverOne -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq $software })) {
+        #Path Application
+        $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
+        #Path file
+        $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
+    }
+
+    ##GP90
     #Path Application
     $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
-    $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
-
+    
     #Path file
     $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
     $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
-    $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
-
+    
     #Path exe
     $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
 
