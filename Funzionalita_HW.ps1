@@ -233,12 +233,20 @@ Function Sync-INIT-Console {
 #Main-Function
 Function main {
 
-    #check if Overone is installed
-    if ($null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\OverOne -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -eq $software })) {
+    #check if Overone is installed   
+
+    $software = "OverOne Desktop";
+    $is32OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq $software })
+    $is64OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq $software })
+
+    $isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
+
+    if ($isOverOneInstalled) {
         #Path Application
         $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
         #Path file
         $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
+        
     }
 
     ##GP90
@@ -255,9 +263,12 @@ Function main {
     #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
     $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
 
-    Sync-INIT-Console
+    
 
     FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
+
+        Sync-INIT-Console
+
         Write-Host '                                                         
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
  ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
@@ -343,7 +354,8 @@ Function main {
             I {
                 #[I] per la lettura del Init di OSLRDServer   
                 Write-Host 'Apro Init...' -ForegroundColor Green
-                notepad $pathInitService  
+                Start-Process notepad.exe $pathInitService -NoNewWindow -Wait 
+                write-host 'Controllo modifiche...' -ForegroundColor Green
             }
             L {
                 #[TCP] Per modificare TCPListener All'interno del init
