@@ -265,7 +265,7 @@ Function main {
 
     
 
-    FOR ($Conteggio = 0; $Conteggio = -1; $Conteggio++) {
+    while ($true) {
 
         Sync-INIT-Console
 
@@ -342,6 +342,8 @@ Function main {
             }
             O {
                 #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
+
+                if ($isOverOneInstalled){
                 Write-Host 'Killo Overone...' -ForegroundColor Green
                 Stop-OverOneMonitoring
                 Remove-Item -Path $pathLogOverOne -Force
@@ -350,6 +352,10 @@ Function main {
                 Write-Host 'Aspetto i segnali...'   
                 Start-Sleep 5
                 Invoke-Item $pathLogOverOne
+                }else {
+                    Write-Host 'OverOne non installato' -ForegroundColor Red
+                }
+                
             }
             I {
                 #[I] per la lettura del Init di OSLRDServer   
