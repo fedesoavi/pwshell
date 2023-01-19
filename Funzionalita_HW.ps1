@@ -1,12 +1,4 @@
-﻿##
-## controllo porte aperte per risolvere problemi con connessioni
-## netstat -a -n -o | Select-String "8080"
-
-## bisogna nullare il controllo su overone perchè non sempre è installato e altrimenti da errore
-###
-
-
-#Start in Admin mode
+﻿#Start in Admin mode
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
