@@ -399,7 +399,6 @@ Function main {
         #TODO eccezioni su porte firewall
         #TODO auto firewall
         #TODO get Machine LIST and check firewall
-        #TODO check if overone is installed
 
         #dsn 
         <# $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
