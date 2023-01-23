@@ -225,12 +225,10 @@ Function Sync-INIT-Console {
 #Main-Function
 Function main {
 
+    #OverOne
     #check if Overone is installed   
-
-    $software = "OverOne Desktop";
-    $is32OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq $software })
-    $is64OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq $software })
-
+    $is32OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
+    $is64OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
     $isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
 
     if ($isOverOneInstalled) {
@@ -241,21 +239,28 @@ Function main {
         
     }
 
-    ##GP90
-    #Path Application
-    $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
-    
-    #Path file
-    $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
-    $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
-    
-    #Path exe
-    $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
+    #GP90
+    #check if GP90 is installed   
+    $is32GP90Installed = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
+    $is64GP90Installed = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
+    $isGP90Installed = $is32GP90Installed -or $is64GP90Installed
 
-    #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
-    $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
+    if($isGP90Installed){
+        #Path Application
+        $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
 
-    
+        $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
+        
+        #Path init
+        $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
+        $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
+        
+        #Path exe
+        $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
+
+        #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
+        $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
+    }
 
     while ($true) {
 
@@ -282,7 +287,7 @@ Function main {
         Write-Host '
     Indirizzi IP:'
         Write-Host 'Indirizzo IP inserito dentro INIT:'  (Get-IniValue $pathInitService 'Config' 'serverTCPListener')
-        Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
+        #Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
 
         Write-Host '
     Servizi:'
@@ -298,7 +303,7 @@ Function main {
     - [K]illare tutti i servizi                              
     - Riavviare [O]verOneMonitoring, cancello il LOG e lo apro                                                        
     - Apro [I]nit di OSLRDServer
-    - Modifica TCP[L]istener All'interno del init
+    - Modifica TCP [L]istener All'interno del init
     - ON/OFF segnali su [T]abella          
     - [X] chiude script                                
     " 
@@ -311,21 +316,21 @@ Function main {
 
         Switch ($key.Character) {
             S {
-                # [S]ervice per avviare la modalita servizio
+                # [S] per avviare la modalita servizio
                 Write-Host 'Avvio Servizio...' -ForegroundColor Green
                 Stop-RdConsole
                 Restart-Service  OSLRDServer
                 Get-Service OSLRDServer
             }
             C {
-                #[C]onsole per avviare la modalita console
+                #[C] per avviare la modalita console
                 Write-Host 'Avvio Console...' -ForegroundColor Green
                 Stop-RdConsole
                 Stop-RdService
                 Start-Process $pathConsole -Verb RunAs
             }
             K {
-                #[K]ill per arrestare il servizio o console e OverOne
+                #[K] per arrestare il servizio o console e OverOne
                 Write-Host 'Killo i servizi...' -ForegroundColor Green
                 Stop-RdConsole
                 Stop-RdService
@@ -333,7 +338,7 @@ Function main {
                 Write-Host "Servizi FERMI"
             }
             O {
-                #[O]verOne per riavviare il servizio OverOneMonitoring e cancellare il LOG
+                #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
 
                 if ($isOverOneInstalled){
                 Write-Host 'Killo Overone...' -ForegroundColor Green
@@ -356,13 +361,13 @@ Function main {
                 write-host 'Controllo modifiche...' -ForegroundColor Green
             }
             L {
-                #[TCP] Per modificare TCPListener All'interno del init
+                #[L] Per modificare TCPListener All'interno del init
                 $IP = Read-Host -Prompt 'Inserisci IP da modificare '
                 Set-IniValue $pathInitService 'Config' 'serverTCPListener' $IP    
                 Write-Host 'scritto ip...' -ForegroundColor Green               
             }
             T {
-                # ON/OFF segnali su [T]abella
+                #[T] ON/OFF segnali su Tabella
                 $usoCollegamentoUnico = Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' 
                 $segnaliSutabella = Get-IniValue $pathInitService 'Config' 'segnaliSuTabella'
 
@@ -401,21 +406,22 @@ Function main {
         #TODO get Machine LIST and check firewall
 
         #dsn 
-        <# $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
-        $PathDSN =  join-Path -Path $PathDSN -childpath '\GP90Next\DSN\GP90.dsn'
-            try {
-                $DSNGP90 = Get-Ini $PathDSN                
-                }
-                catch [System.Net.WebException],[System.IO.IOException] {                
-                }catch {
-                $DSNGP90 = 'File GP90.dsn non trovato'    
-                } #>
+        
 
         #--------------------------------------------------
 
         
 
-        #TODO REFACTOR# conpilazione automatica DSN
+        #TODO REFACTOR# compilazione automatica DSN
+
+
+
+
+
+
+
+
+
         if ($SCELTA -eq "AU") {       
             IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
                 Write-Host "  
@@ -431,7 +437,7 @@ Function main {
                 $iniDict.Task1.secondi = 15
                 $iniDict.Task2.secondi = 19
                 Write-Host "  
-          Riepilogo delle informazzioni che verranno scritte dentro init : " -ForegroundColor green
+          Riepilogo delle informazioni che verranno scritte dentro init : " -ForegroundColor green
                 $iniDict.Config
                 Start-Sleep 10
                 try {
