@@ -1,8 +1,8 @@
 ﻿#Start in Admin mode
-If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+<# If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
-}
+} #>
 
 Add-Type -Namespace net.same2u.WinApiHelper -Name IniFile -MemberDefinition @'
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
@@ -247,16 +247,18 @@ Function main {
 
     if($isGP90Installed){
         #Path Application
-        $pathGp90 = Split-Path -Path (Get-AppPath('OSLRDServer'))
 
-        $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
+        $pathGp90
+        $pathGp90OslRdServer = Split-Path -Path (Get-AppPath('OSLRDServer'))
+
+        $PathDSN = $pathGp90OslRdServer.Substring(0,$pathGp90OslRdServer.IndexOf("GP90Next"))
         
         #Path init
-        $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini -Name)
-        $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini -Name)
+        $pathInitService = Join-Path -Path $pathGp90OslRdServer -childpath (Get-ChildItem $pathGp90OslRdServer -Filter ?nit.ini -Name)
+        $pathInitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)
         
         #Path exe
-        $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
+        $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'
 
         #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
         $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
@@ -327,7 +329,7 @@ Function main {
                 Write-Host 'Avvio Console...' -ForegroundColor Green
                 Stop-RdConsole
                 Stop-RdService
-                Start-Process $pathConsole -Verb RunAs
+                Start-Process $pathExeConsole -Verb RunAs
             }
             K {
                 #[K] per arrestare il servizio o console e OverOne
@@ -382,6 +384,10 @@ Function main {
                     Write-Host "Abilitati segnali su tabella" -ForegroundColor green
                 }          
             }
+            D {
+                Write-Host "DSN check"
+                Get-ChildItem ($pathGp90OslRdServer +"\dsn")
+            }
             X {    
                 #[X] chiude script
                 #Garbage collection
@@ -413,16 +419,8 @@ Function main {
         
 
         #TODO REFACTOR# compilazione automatica DSN
-
-
-
-
-
-
-
-
-
-        if ($SCELTA -eq "AU") {       
+        
+        <# if ($SCELTA -eq "AU") {       
             IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
                 Write-Host "  
          Non Esiste il GP90.dsn, probabilmente
@@ -453,7 +451,7 @@ Function main {
              Scrittura non risucita" -ForegroundColor red    
                 }
             }
-        }
+        } #>
 
         
         start-sleep 2
