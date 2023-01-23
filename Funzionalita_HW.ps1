@@ -201,7 +201,7 @@ Function Get-AppPath {
     (-split $service.pathname)[0] # get 1st token
     }
 
-    return $serviceBinaryPath    
+    return $serviceBinaryPath
 }
 Function Sync-INIT-Console {
     #check init from service to appconsole if are equal
@@ -235,7 +235,7 @@ Function main {
         #Path Application
         $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
         #Path file
-        $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log)
+        $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log -Name)
         
     }
 
@@ -252,8 +252,8 @@ Function main {
         $PathDSN = $pathGp90.Substring(0,$pathGp90.IndexOf("GP90Next"))
         
         #Path init
-        $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini)
-        $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini)
+        $pathInitService = Join-Path -Path $pathGp90 -childpath (Get-ChildItem $pathGp90 -Filter ?nit.ini -Name)
+        $pathInitConsole = Join-Path -Path ($pathGp90 + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90 + '\AppConsole' ) -Filter ?nit.ini -Name)
         
         #Path exe
         $pathConsole = join-Path -Path $pathGp90 -childpath '\AppConsole\OSLRDServer.exe'
