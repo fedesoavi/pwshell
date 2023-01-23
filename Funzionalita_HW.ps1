@@ -205,10 +205,10 @@ Function Get-AppPath {
 }
 Function Sync-INIT-Console {
     #check init from service to appconsole if are equal
-    if (Test-Path -Path $pathInitConsole -PathType Leaf) {
-        if (!((Get-FileHash $pathInitService).Hash -eq (Get-FileHash $pathInitConsole).Hash)) {
+    if (Test-Path -Path $InitConsole -PathType Leaf) {
+        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
             Write-Host 'Console ini not aligned...'
-            Copy-Item $pathInitService -Destination $pathInitConsole
+            Copy-Item $InitService -Destination $InitConsole
             Write-Host 'Copied from Service...Completed'
             Start-Sleep 3
             Clear-Host
@@ -216,7 +216,7 @@ Function Sync-INIT-Console {
     }
     else {
         Write-Host 'Console ini missing...'
-        Copy-Item $pathInitService -Destination $pathInitConsole
+        Copy-Item $InitService -Destination $InitConsole
         Write-Host 'Copied from Service...Completed'
         Start-Sleep 3
         Clear-Host
@@ -233,9 +233,9 @@ Function main {
 
     if ($isOverOneInstalled) {
         #Path Application
-        $pathOverOne = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
+        $pathOverOneMonitor = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
         #Path file
-        $pathLogOverOne = Join-Path -Path ($pathOverOne + '\Log') -childpath (Get-ChildItem ($pathOverOne + '\Log' ) -Filter overOneMonitoringService.log -Name)
+        $LogOverOne = Join-Path -Path ($pathOverOneMonitor + '\Log') -childpath (Get-ChildItem ($pathOverOneMonitor + '\Log' ) -Filter overOneMonitoringService.log -Name)
         
     }
 
@@ -245,17 +245,19 @@ Function main {
     $is64GP90Installed = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
     $isGP90Installed = $is32GP90Installed -or $is64GP90Installed
 
-    if($isGP90Installed){
+    if ($isGP90Installed) {
         #Path Application
 
-        $pathGp90
-        $pathGp90OslRdServer = Split-Path -Path (Get-AppPath('OSLRDServer'))
+        $servicepath = Get-AppPath('OSLRDServer')
 
-        $PathDSN = $pathGp90OslRdServer.Substring(0,$pathGp90OslRdServer.IndexOf("GP90Next"))
+        $pathGp90 = $servicepath.Substring(0, $servicepath.IndexOf("Programmi_Aggiuntivi"))
+
+        $pathGp90OslRdServer = split-path -path ($servicepath)
+        $PathDSN = Join-Path -Path $pathGp90 "\dsn"
         
         #Path init
-        $pathInitService = Join-Path -Path $pathGp90OslRdServer -childpath (Get-ChildItem $pathGp90OslRdServer -Filter ?nit.ini -Name)
-        $pathInitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)
+        $InitService = Join-Path -Path $pathGp90OslRdServer -childpath (Get-ChildItem $pathGp90OslRdServer -Filter ?nit.ini -Name)
+        $InitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)
         
         #Path exe
         $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'
@@ -283,12 +285,12 @@ Function main {
 
         Write-Host '
     Segnali su tabella'
-        if ((Get-IniValue $pathInitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
-        if ((Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
+        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
+        if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
 
         Write-Host '
     Indirizzi IP:'
-        Write-Host 'Indirizzo IP inserito dentro INIT:'  (Get-IniValue $pathInitService 'Config' 'serverTCPListener')
+        Write-Host 'Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
         #Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
 
         Write-Host '
@@ -342,16 +344,17 @@ Function main {
             O {
                 #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
 
-                if ($isOverOneInstalled){
-                Write-Host 'Killo Overone...' -ForegroundColor Green
-                Stop-OverOneMonitoring
-                Remove-Item -Path $pathLogOverOne -Force
-                Start-Sleep 2
-                Start-Service  OverOneMonitoringWindowsService  
-                Write-Host 'Aspetto i segnali...'   
-                Start-Sleep 5
-                Invoke-Item $pathLogOverOne
-                }else {
+                if ($isOverOneInstalled) {
+                    Write-Host 'Killo Overone...' -ForegroundColor Green
+                    Stop-OverOneMonitoring
+                    Remove-Item -Path $LogOverOne -Force
+                    Start-Sleep 2
+                    Start-Service  OverOneMonitoringWindowsService  
+                    Write-Host 'Aspetto i segnali...'   
+                    Start-Sleep 5
+                    Invoke-Item $LogOverOne
+                }
+                else {
                     Write-Host 'OverOne non installato' -ForegroundColor Red
                 }
                 
@@ -359,34 +362,41 @@ Function main {
             I {
                 #[I] per la lettura del Init di OSLRDServer   
                 Write-Host 'Apro Init...' -ForegroundColor Green
-                Start-Process notepad.exe $pathInitService -NoNewWindow -Wait 
+                Start-Process notepad.exe $InitService -NoNewWindow -Wait 
                 write-host 'Controllo modifiche...' -ForegroundColor Green
             }
             L {
                 #[L] Per modificare TCPListener All'interno del init
                 $IP = Read-Host -Prompt 'Inserisci IP da modificare '
-                Set-IniValue $pathInitService 'Config' 'serverTCPListener' $IP    
+                Set-IniValue $InitService 'Config' 'serverTCPListener' $IP    
                 Write-Host 'scritto ip...' -ForegroundColor Green               
             }
             T {
                 #[T] ON/OFF segnali su Tabella
-                $usoCollegamentoUnico = Get-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' 
-                $segnaliSutabella = Get-IniValue $pathInitService 'Config' 'segnaliSuTabella'
+                $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico' 
+                $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
 
                 if (($usoCollegamentoUnico -eq -1) -or ($segnaliSutabella -eq -1)) {
-                    Set-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' 0
-                    Set-IniValue $pathInitService 'Config' 'segnaliSuTabella' 0
+                    Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' 0
+                    Set-IniValue $InitService 'Config' 'segnaliSuTabella' 0
                     Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
                 }
                 else {
-                    Set-IniValue $pathInitService 'Config' 'usoCollegamentoUnico' -1
-                    Set-IniValue $pathInitService 'Config' 'segnaliSuTabella' -1
+                    Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' -1
+                    Set-IniValue $InitService 'Config' 'segnaliSuTabella' -1
                     Write-Host "Abilitati segnali su tabella" -ForegroundColor green
                 }          
             }
             D {
                 Write-Host "DSN check"
-                Get-ChildItem ($pathGp90OslRdServer +"\dsn")
+                $selection = Get-ChildItem $PathDSN |  Out-GridView -OutputMode Single
+
+                write-host = $selection.ResolvedTarget
+                $confirmation = Read-Host "è stato selezionato il seguente dsn " $selection.Name " Proceder?:"
+                if ($confirmation -eq 'y') {
+                    # proceed
+                }
+                
             }
             X {    
                 #[X] chiude script
