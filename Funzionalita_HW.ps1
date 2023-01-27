@@ -289,10 +289,9 @@ Function main {
         $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'        
     }
 
-        #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
-        #$IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
+    $IndirizzoIP = Get-NetIPAddress -AddressFamily ipV4 | Where-Object {$_.InterfaceAlias -eq "Ethernet"}
 
-     #############################################################################
+        #############################################################################
         #                da Controllare                                             #
         #############################################################################
         #--------------------------------------------------
@@ -316,19 +315,18 @@ Function main {
         }
 
         Write-Host ''
-        Write-Host 'Segnali su tabella'
+        Write-Host ' Segnali su tabella'
 
         if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }        
         if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
 
         Write-Host ''
-        Write-Host 'Indirizzi IP:'
-        Write-Host '
-        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
-        #Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
+        Write-Host ' Indirizzi IP:'
+        Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
+        Write-Host '        Indirizzo IP del PC: ' $IndirizzoIP
 
         Write-Host ''
-        Write-Host 'Servizi:'
+        Write-Host ' Servizi:'
         Get-Service-Status('OSLRDServer')
         Get-Service-Status('OverOne Monitoring Service')
 
