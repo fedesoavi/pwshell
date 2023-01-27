@@ -137,7 +137,10 @@ Function Get-Service-Status {
         Write-Host $sName  ' is not installed on this computer.'
     }
     else {
-        if ($service.Status -eq 'Running') { Write-Host $sName   'Service is running' -ForegroundColor green } else { Write-Host $sName 'Service is not running' -ForegroundColor Red }
+        if ($service.Status -eq 'Running') { Write-Host '
+        ' $sName   'Service is running' -ForegroundColor green } 
+        else { Write-Host '
+        ' $sName 'Service is not running' -ForegroundColor Red }
     }
     
     Remove-Variable sName
@@ -222,6 +225,42 @@ Function Sync-INIT-Console {
         Clear-Host
     }
 }
+function show-title {
+    Write-Host '                                                         
+  ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
+ ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
+ ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
+ ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
+  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██
+  ' 
+}
+
+function Show-Menu {
+    param (
+        [string]$Title = 'Osl Debugger'
+    )
+    Write-Host""
+
+    Write-Host "================================================================================================
+    "
+    
+    write-host "Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
+    
+    Write-Host "
+    [A]: Forza Allineamento Init Servizio con init console
+    [C]: Avviare OSLRDServer in Console
+    [S]: Avviare Servizio OSLRDServer
+    [K]: Killare tutti i servizi
+    [O]: Riavviare OverOneMonitoring, cancello il LOG e lo apro
+    [I]: Apro Init di OSLRDServer
+    [L]: Modifica TCP Listener All'interno del init
+    [T]: ON/OFF segnali su Tabella
+    [D]: Copia da Dsn
+    [X]: Chiude script
+    " 
+}
+
+
 #Main-Function
 Function main {
 
@@ -232,11 +271,8 @@ Function main {
     $isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
 
     if ($isOverOneInstalled) {
-        #Path Application
         $pathOverOneMonitor = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
-        #Path file
-        $LogOverOne = Join-Path -Path ($pathOverOneMonitor + '\Log') -childpath (Get-ChildItem ($pathOverOneMonitor + '\Log' ) -Filter overOneMonitoringService.log -Name)
-        
+        $LogOverOne = Join-Path -Path ($pathOverOneMonitor + '\Log') -childpath (Get-ChildItem ($pathOverOneMonitor + '\Log' ) -Filter overOneMonitoringService.log -Name)        
     }
 
     #GP90
@@ -246,25 +282,17 @@ Function main {
     $isGP90Installed = $is32GP90Installed -or $is64GP90Installed
 
     if ($isGP90Installed) {
-        #Path Application
-
         $servicepath = Get-AppPath('OSLRDServer')
-
         $pathGp90 = $servicepath.Substring(0, $servicepath.IndexOf("Programmi_Aggiuntivi"))
-
         $pathGp90OslRdServer = split-path -path ($servicepath)
-        $PathDSN = Join-Path -Path $pathGp90 "\dsn"
-        
-        #Path init
+        $PathDSN = Join-Path -Path $pathGp90 "\dsn"        
         $InitService = Join-Path -Path $pathGp90OslRdServer -childpath (Get-ChildItem $pathGp90OslRdServer -Filter ?nit.ini -Name)
-        $InitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)
-        
-        #Path exe
-        $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'
+        $InitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)        
+        $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'        
+    }
 
         #$IndirizzoIP = Get-NetIPAddress -InterfaceIndex ((Get-NetIPConfiguration).Where({ $_.IPv4DefaultGateway -ne $null -and $_.NetAdapter.status -ne "Disconnected" })).InterfaceIndex
-        $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
-    }
+        #$IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
 
      #############################################################################
         #                da Controllare                                             #
@@ -278,56 +306,50 @@ Function main {
 
     while ($true) {
 
-        Sync-INIT-Console
-
-        Write-Host '                                                         
-  ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
- ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
- ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
- ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
-  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██'
+        show-title
 
         #Garbage collection
         if (($i % 200) -eq 0) {
             [System.GC]::Collect()
         }
 
+        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
+            Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red          
+        }
 
-        Write-Host '
-    Segnali su tabella'
-        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host 'Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host 'Segnali su Tabella disattivo' -ForegroundColor Red }
-        if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host 'Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host 'Collegamento Unico disattivo' -ForegroundColor Red }
+        Write-Host ''
+        Write-Host 'Segnali su tabella'
 
+        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '
+        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '
+        Segnali su Tabella disattivo' -ForegroundColor Red }
+        
+        if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '
+        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '
+        Collegamento Unico disattivo' -ForegroundColor Red }
+
+        Write-Host ''
+        Write-Host 'Indirizzi IP:'
         Write-Host '
-    Indirizzi IP:'
-        Write-Host 'Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
+        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
         #Write-Host 'Indirizzo IP del PC: ' $IndirizzoIP
 
-        Write-Host '
-    Servizi:'
+        Write-Host ''
+        Write-Host 'Servizi:'
         Get-Service-Status('OSLRDServer')
         Get-Service-Status('OverOne Monitoring Service')
 
-        Write-Host " 
-    Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
-        Write-Host "                                                                                                  
-    Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
-    - Avviare OSLRDServer in [C]onsole
-    - Avviare [S]ervizio OSLRDServer
-    - [K]illare tutti i servizi
-    - Riavviare [O]verOneMonitoring, cancello il LOG e lo apro
-    - Apro [I]nit di OSLRDServer
-    - Modifica TCP [L]istener All'interno del init
-    - ON/OFF segnali su [T]abella
-    - Copia da [D]sn
-    - [X] chiude script                                
-    " 
+        Show-Menu
     
         write-output "Digitare la LETTERA del COMANDO:"
         $key = $Host.UI.RawUI.ReadKey()
         Write-Host''   
 
         Switch ($key.Character) {
+            A{
+                #[A] Forza Allineamento Init Servizio con init console
+                Sync-INIT-Console
+            }
             S {
                 # [S] per avviare la modalita servizio
                 Write-Host 'Avvio Servizio...' -ForegroundColor Green
