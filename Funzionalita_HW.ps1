@@ -266,6 +266,16 @@ Function main {
         $IndirizzoIP = (Get-NetIPAddress | Where-Object { $_.AddressState -eq "Preferred" -and $_.ValidLifetime -lt "24:00:00" }).IPAddress
     }
 
+     #############################################################################
+        #                da Controllare                                             #
+        #############################################################################
+        #--------------------------------------------------
+        #TODO eccezioni su porte firewall
+        #TODO auto firewall
+        #TODO get Machine LIST and check firewall     
+
+        #--------------------------------------------------
+
     while ($true) {
 
         Sync-INIT-Console
@@ -302,17 +312,16 @@ Function main {
     Inizializzazione dati completata----------------------------------------------------------------------" -ForegroundColor green
         Write-Host "                                                                                                  
     Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto: 
-    - Avviare OSLRDServer in [C]onsole                                              
-    - Avviare [S]ervizio OSLRDServer                                    
-    - [K]illare tutti i servizi                              
-    - Riavviare [O]verOneMonitoring, cancello il LOG e lo apro                                                        
+    - Avviare OSLRDServer in [C]onsole
+    - Avviare [S]ervizio OSLRDServer
+    - [K]illare tutti i servizi
+    - Riavviare [O]verOneMonitoring, cancello il LOG e lo apro
     - Apro [I]nit di OSLRDServer
     - Modifica TCP [L]istener All'interno del init
-    - ON/OFF segnali su [T]abella          
+    - ON/OFF segnali su [T]abella
+    - Copia da [D]sn
     - [X] chiude script                                
     " 
-        #Digitare [TCP] Per modificare TCPListener All'interno del init                                  
-        #Digitare [E]dit per modificare INIT di OSLRDserver   
     
         write-output "Digitare la LETTERA del COMANDO:"
         $key = $Host.UI.RawUI.ReadKey()
@@ -388,15 +397,33 @@ Function main {
                 }          
             }
             D {
+                #[D] Copio dati di un dsn dentro init servizio
                 Write-Host "DSN check"
                 $selection = Get-ChildItem $PathDSN |  Out-GridView -OutputMode Single
 
-                write-host = $selection.ResolvedTarget
-                $confirmation = Read-Host "è stato selezionato il seguente dsn " $selection.Name " Proceder?:"
-                if ($confirmation -eq 'y') {
-                    # proceed
-                }
+                $title = "DSN overwrite"
+                $question = "è stato selezionato il seguente dsn $($selection.Name) procedere?"
+                $choices = '&Yes', '&No'
                 
+                $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+                if ($decision -eq 0) {
+                    Write-Host 'confirmed'
+
+                    $dsnDatabase = Get-IniValue $selection.FullName 'ODBC' 'DATABASE'
+                    Set-IniValue $InitService 'Config' 'database' $dsnDatabase
+                    
+                    $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'                    
+                    Set-IniValue $InitService 'Config' 'database' $dsnServer
+
+                    $dsnUser = Get-IniValue $selection.FullName 'ODBC' 'UID'
+                    Set-IniValue $InitService 'Config' 'database' $dsnUser
+
+                    $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD' 
+                    Set-IniValue $InitService 'Config' 'database' $dsnPassword
+                }
+                else {
+                    Write-Host 'cancelled'
+                }                
             }
             X {    
                 #[X] chiude script
@@ -408,62 +435,8 @@ Function main {
                 Exit
             }
             default { write-host 'Invalid option' -ForegroundColor red }
-        } 
+        }
 
-        
-
-
-        #############################################################################
-        #                da Controllare                                             #
-        #############################################################################
-        #--------------------------------------------------
-        #TODO eccezioni su porte firewall
-        #TODO auto firewall
-        #TODO get Machine LIST and check firewall
-
-        #dsn 
-        
-
-        #--------------------------------------------------
-
-        
-
-        #TODO REFACTOR# compilazione automatica DSN
-        
-        <# if ($SCELTA -eq "AU") {       
-            IF ($DSNGP90 -eq 'File GP90.dsn non trovato') {
-                Write-Host "  
-         Non Esiste il GP90.dsn, probabilmente
-         " -ForegroundColor red
-            }
-            else {
-                $iniDict.Config.serverDB = $DSNGP90.ODBC.SERVER
-                $iniDict.Config.database = $DSNGP90.ODBC.DATABASE
-                $iniDict.Config.username = $DSNGP90.ODBC.UID
-                $iniDict.Config.password = $DSNGP90.ODBC.password
-                $iniDict.Config.ServerTCPListener = $IndirizzoIP.IPAddress
-                $iniDict.Task1.secondi = 15
-                $iniDict.Task2.secondi = 19
-                Write-Host "  
-          Riepilogo delle informazioni che verranno scritte dentro init : " -ForegroundColor green
-                $iniDict.Config
-                Start-Sleep 10
-                try {
-                    Write-INIT-OSLRDServer -ObjectCustom $iniDict -Directory $pathInit
-                    $iniDict = Get-Ini $pathInit
-                    Write-Host "               
-              Scrittura Eseguita" -ForegroundColor green      
-                }
-                catch [System.Net.WebException], [System.IO.IOException] {       
-                }
-                catch {
-                    Write-Host "  
-             Scrittura non risucita" -ForegroundColor red    
-                }
-            }
-        } #>
-
-        
         start-sleep 2
         Clear-Host
     }
