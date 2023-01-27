@@ -137,10 +137,8 @@ Function Get-Service-Status {
         Write-Host $sName  ' is not installed on this computer.'
     }
     else {
-        if ($service.Status -eq 'Running') { Write-Host '
-        ' $sName   'Service is running' -ForegroundColor green } 
-        else { Write-Host '
-        ' $sName 'Service is not running' -ForegroundColor Red }
+        if ($service.Status -eq 'Running') { Write-Host '        ' $sName   'Service is running' -ForegroundColor green } 
+        else { Write-Host '        ' $sName 'Service is not running' -ForegroundColor Red }
     }
     
     Remove-Variable sName
@@ -320,13 +318,8 @@ Function main {
         Write-Host ''
         Write-Host 'Segnali su tabella'
 
-        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '
-        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '
-        Segnali su Tabella disattivo' -ForegroundColor Red }
-        
-        if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '
-        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '
-        Collegamento Unico disattivo' -ForegroundColor Red }
+        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }        
+        if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
 
         Write-Host ''
         Write-Host 'Indirizzi IP:'
