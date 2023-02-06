@@ -257,6 +257,103 @@ function Show-Menu {
     [X]: Chiude script
     " 
 }
+function start-OslRdServerService {
+    # [S] per avviare la modalita servizio
+    Write-Host 'Avvio Servizio...' -ForegroundColor Green
+    Stop-RdConsole
+    Restart-Service  OSLRDServer
+    Get-Service OSLRDServer
+}
+
+function Start-OslRdServerConsole {
+    #[C] per avviare la modalita console
+    Write-Host 'Avvio Console...' -ForegroundColor Green
+    Stop-RdConsole
+    Stop-RdService
+    Start-Process $pathExeConsole -Verb RunAs
+}
+function Stop-AllService {                    
+    #[K] per arrestare il servizio o console e OverOne
+    Write-Host 'Killo i servizi...' -ForegroundColor Green
+    Stop-RdConsole
+    Stop-RdService
+    Stop-OverOneMonitoring      
+    Write-Host "Servizi FERMI"
+}
+function Restart-Overone {
+    #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
+    if ($isOverOneInstalled) {
+        Write-Host 'Killo Overone...' -ForegroundColor Green
+        Stop-OverOneMonitoring
+        Remove-Item -Path $LogOverOne -Force
+        Start-Sleep 2
+        Start-Service  OverOneMonitoringWindowsService  
+        Write-Host 'Aspetto i segnali...'   
+        Start-Sleep 5
+        Invoke-Item $LogOverOne
+    }
+    else {
+        Write-Host 'OverOne non installato' -ForegroundColor Red
+    }
+}
+function Open-Init {
+    #[I] per la lettura del Init di OSLRDServer
+    Write-Host 'Apro Init...' -ForegroundColor Green
+    Start-Process notepad.exe $InitService -NoNewWindow -Wait 
+    write-host 'Controllo modifiche...' -ForegroundColor Green
+}
+
+function Edit-Tcplistener {
+    #[L] Per modificare TCPListener All'interno del init
+    $IP = Read-Host -Prompt 'Inserisci IP da modificare '
+    Set-IniValue $InitService 'Config' 'serverTCPListener' $IP    
+    Write-Host 'scritto ip...' -ForegroundColor Green   
+}
+function Switch-SegnaliSuTabella {
+    #[T] ON/OFF segnali su Tabella
+    $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico' 
+    $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
+
+    if (($usoCollegamentoUnico -eq -1) -or ($segnaliSutabella -eq -1)) {
+        Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' 0
+        Set-IniValue $InitService 'Config' 'segnaliSuTabella' 0
+        Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
+    }
+    else {
+        Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' -1
+        Set-IniValue $InitService 'Config' 'segnaliSuTabella' -1
+        Write-Host "Abilitati segnali su tabella" -ForegroundColor green
+    }
+}
+function Copy-DsnToInit {
+    #[D] Copio dati di un dsn dentro init servizio
+    Write-Host "DSN check"
+    $selection = Get-ChildItem $PathDSN |  Out-GridView -OutputMode Single
+
+    $title = "DSN overwrite"
+    $question = "è stato selezionato il seguente dsn $($selection.Name) procedere?"
+    $choices = '&Yes', '&No'
+    
+    $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+    if ($decision -eq 0) {
+        Write-Host 'confirmed'
+
+        $dsnDatabase = Get-IniValue $selection.FullName 'ODBC' 'DATABASE'
+        Set-IniValue $InitService 'Config' 'database' $dsnDatabase
+        
+        $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'                    
+        Set-IniValue $InitService 'Config' 'database' $dsnServer
+
+        $dsnUser = Get-IniValue $selection.FullName 'ODBC' 'UID'
+        Set-IniValue $InitService 'Config' 'database' $dsnUser
+
+        $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD' 
+        Set-IniValue $InitService 'Config' 'database' $dsnPassword
+    }
+    else {
+        Write-Host 'cancelled'
+    }
+}
 
 
 #Main-Function
@@ -343,100 +440,35 @@ Function main {
             }
             S {
                 # [S] per avviare la modalita servizio
-                Write-Host 'Avvio Servizio...' -ForegroundColor Green
-                Stop-RdConsole
-                Restart-Service  OSLRDServer
-                Get-Service OSLRDServer
+                start-OslRdServerService
             }
             C {
                 #[C] per avviare la modalita console
-                Write-Host 'Avvio Console...' -ForegroundColor Green
-                Stop-RdConsole
-                Stop-RdService
-                Start-Process $pathExeConsole -Verb RunAs
+                Start-OslRdServerConsole
             }
             K {
                 #[K] per arrestare il servizio o console e OverOne
-                Write-Host 'Killo i servizi...' -ForegroundColor Green
-                Stop-RdConsole
-                Stop-RdService
-                Stop-OverOneMonitoring      
-                Write-Host "Servizi FERMI"
+                Stop-AllService
             }
             O {
                 #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
-
-                if ($isOverOneInstalled) {
-                    Write-Host 'Killo Overone...' -ForegroundColor Green
-                    Stop-OverOneMonitoring
-                    Remove-Item -Path $LogOverOne -Force
-                    Start-Sleep 2
-                    Start-Service  OverOneMonitoringWindowsService  
-                    Write-Host 'Aspetto i segnali...'   
-                    Start-Sleep 5
-                    Invoke-Item $LogOverOne
-                }
-                else {
-                    Write-Host 'OverOne non installato' -ForegroundColor Red
-                }
-                
+                Restart-Overone
             }
             I {
-                #[I] per la lettura del Init di OSLRDServer   
-                Write-Host 'Apro Init...' -ForegroundColor Green
-                Start-Process notepad.exe $InitService -NoNewWindow -Wait 
-                write-host 'Controllo modifiche...' -ForegroundColor Green
+                #[I] per la lettura del Init di OSLRDServer
+                Open-Init                
             }
             L {
                 #[L] Per modificare TCPListener All'interno del init
-                $IP = Read-Host -Prompt 'Inserisci IP da modificare '
-                Set-IniValue $InitService 'Config' 'serverTCPListener' $IP    
-                Write-Host 'scritto ip...' -ForegroundColor Green               
+                Edit-Tcplistener                        
             }
             T {
                 #[T] ON/OFF segnali su Tabella
-                $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico' 
-                $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
-
-                if (($usoCollegamentoUnico -eq -1) -or ($segnaliSutabella -eq -1)) {
-                    Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' 0
-                    Set-IniValue $InitService 'Config' 'segnaliSuTabella' 0
-                    Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
-                }
-                else {
-                    Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' -1
-                    Set-IniValue $InitService 'Config' 'segnaliSuTabella' -1
-                    Write-Host "Abilitati segnali su tabella" -ForegroundColor green
-                }          
+                Switch-SegnaliSuTabella                
             }
             D {
                 #[D] Copio dati di un dsn dentro init servizio
-                Write-Host "DSN check"
-                $selection = Get-ChildItem $PathDSN |  Out-GridView -OutputMode Single
-
-                $title = "DSN overwrite"
-                $question = "è stato selezionato il seguente dsn $($selection.Name) procedere?"
-                $choices = '&Yes', '&No'
-                
-                $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
-                if ($decision -eq 0) {
-                    Write-Host 'confirmed'
-
-                    $dsnDatabase = Get-IniValue $selection.FullName 'ODBC' 'DATABASE'
-                    Set-IniValue $InitService 'Config' 'database' $dsnDatabase
-                    
-                    $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'                    
-                    Set-IniValue $InitService 'Config' 'database' $dsnServer
-
-                    $dsnUser = Get-IniValue $selection.FullName 'ODBC' 'UID'
-                    Set-IniValue $InitService 'Config' 'database' $dsnUser
-
-                    $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD' 
-                    Set-IniValue $InitService 'Config' 'database' $dsnPassword
-                }
-                else {
-                    Write-Host 'cancelled'
-                }                
+                Copy-DsnToInit                
             }
             X {    
                 #[X] chiude script
