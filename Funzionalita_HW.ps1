@@ -126,7 +126,7 @@ Function Set-IniValue {
     if (-not $ok) { Throw "Updating INI file failed: $fullPath" }
         
 }
-Function Get-Service-Status {
+Function Get-ServiceStatus {
     param(
         [Parameter (Mandatory = $true)] $sName
     )
@@ -204,7 +204,7 @@ Function Get-AppPath {
 
     return $serviceBinaryPath
 }
-Function Sync-INIT-Console {
+Function Sync-InitConsole {
     #check init from service to appconsole if are equal
     if (Test-Path -Path $InitConsole -PathType Leaf) {
         if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
@@ -299,15 +299,17 @@ function Restart-Overone {
 function Open-Init {
     #[I] per la lettura del Init di OSLRDServer
     Write-Host 'Apro Init...' -ForegroundColor Green
-    Start-Process notepad.exe $InitService -NoNewWindow -Wait 
+    Start-Process notepad.exe $InitService -NoNewWindow -Wait
     write-host 'Controllo modifiche...' -ForegroundColor Green
+    Sync-InitConsole
 }
 
 function Edit-Tcplistener {
     #[L] Per modificare TCPListener All'interno del init
     $IP = Read-Host -Prompt 'Inserisci IP da modificare '
     Set-IniValue $InitService 'Config' 'serverTCPListener' $IP    
-    Write-Host 'scritto ip...' -ForegroundColor Green   
+    Write-Host 'scritto ip...' -ForegroundColor Green
+    Sync-InitConsole
 }
 function Switch-SegnaliSuTabella {
     #[T] ON/OFF segnali su Tabella
@@ -349,6 +351,8 @@ function Copy-DsnToInit {
 
         $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD' 
         Set-IniValue $InitService 'Config' 'database' $dsnPassword
+
+        Sync-InitConsole
     }
     else {
         Write-Host 'cancelled'
@@ -424,8 +428,8 @@ Function main {
 
         Write-Host ''
         Write-Host ' Servizi:'
-        Get-Service-Status('OSLRDServer')
-        Get-Service-Status('OverOne Monitoring Service')
+        Get-ServiceStatus('OSLRDServer')
+        Get-ServiceStatus('OverOne Monitoring Service')
 
         Show-Menu
     
@@ -436,7 +440,7 @@ Function main {
         Switch ($key.Character) {
             A{
                 #[A] Forza Allineamento Init Servizio con init console
-                Sync-INIT-Console
+                Sync-InitConsole
             }
             S {
                 # [S] per avviare la modalita servizio
