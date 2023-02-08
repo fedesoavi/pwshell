@@ -471,6 +471,9 @@ Function main {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit                
             }
+            F{
+                Get-NetFirewallProfile -PolicyStore ActiveStore
+            }
             X {    
                 #[X] chiude script
                 #Garbage collection
