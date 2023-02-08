@@ -400,6 +400,8 @@ Function main {
         #TODO auto firewall
         #TODO get Machine LIST and check firewall     
 
+        uhihiuhiu
+
         #--------------------------------------------------
 
     while ($true) {
