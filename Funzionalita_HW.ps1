@@ -396,11 +396,6 @@ Function main {
         #TODO auto firewall
         #TODO get Machine LIST and check firewall     
 
-        uhihiuhiue
-
-        dsacls.exed
-        a
-        da
 
         #--------------------------------------------------
 
