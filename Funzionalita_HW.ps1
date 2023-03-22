@@ -223,7 +223,7 @@ Function Sync-INIT-Console {
         Clear-Host
     }
 }
-function show-title {
+function Show-Title {
     Write-Host '                                                         
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
  ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
@@ -257,7 +257,7 @@ function Show-Menu {
     [X]: Chiude script
     " 
 }
-function start-OslRdServerService {
+function Start-OslRdServerService {
     # [S] per avviare la modalita servizio
     Write-Host 'Avvio Servizio...' -ForegroundColor Green
     Stop-RdConsole
@@ -401,7 +401,7 @@ Function main {
 
     while ($true) {
 
-        show-title
+        Show-Title
 
         #Garbage collection
         if (($i % 200) -eq 0) {
@@ -441,7 +441,7 @@ Function main {
             }
             S {
                 # [S] per avviare la modalita servizio
-                start-OslRdServerService
+                Start-OslRdServerService
             }
             C {
                 #[C] per avviare la modalita console
