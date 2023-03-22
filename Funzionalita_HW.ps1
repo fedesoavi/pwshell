@@ -1,8 +1,8 @@
 ﻿#Start in Admin mode
-<# If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
-} #>
+}
 
 Add-Type -Namespace net.same2u.WinApiHelper -Name IniFile -MemberDefinition @'
   [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
@@ -289,7 +289,7 @@ function Restart-Overone {
         Start-Sleep 2
         Start-Service  OverOneMonitoringWindowsService  
         Write-Host 'Aspetto i segnali...'   
-        Start-Sleep 5
+        Start-Sleep 15
         Invoke-Item $LogOverOne
     }
     else {
