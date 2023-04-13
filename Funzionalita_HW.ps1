@@ -126,60 +126,84 @@ Function Set-IniValue {
     if (-not $ok) { Throw "Updating INI file failed: $fullPath" }
         
 }
-Function Get-Service-Status {
+function Get-ServiceStatus {
+    [CmdletBinding()]
     param(
-        [Parameter (Mandatory = $true)] $sName
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceName
     )
-    # Purpose: To check whether a service is installed
-    $service = Get-Service -display $sName -ErrorAction SilentlyContinue
-    
-    If ( -not $service ) {
-        Write-Host $sName  ' is not installed on this computer.'
+
+    $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+
+    if (-not $service) {
+        Write-Host "$ServiceName is not installed on this computer."
+    } else {
+        $status = $service.Status
+        Write-Host "$ServiceName service is $status" -ForegroundColor $(switch ($status) {
+            'Running' { 'Green' }
+            default { 'Red' }
+        })
+    }
+}
+function Stop-RdConsole {
+    [CmdletBinding()]
+    param()
+    # Get the process object for OSLRDServer
+    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+
+    if ($appConsole) {
+        Write-Host 'Trying to gracefully close the AppConsole...'
+        # Try to close the main window gracefully first
+        $appConsole.CloseMainWindow()
+
+        # Wait for 5 seconds to let the window close
+        Start-Sleep -Seconds 5
+
+        # Check if the process is still running and kill it if needed
+        if (!$appConsole.HasExited) {
+            Write-Host 'AppConsole did not close gracefully. Killing the process...'
+            $appConsole | Stop-Process -Force
+        }
+        else {
+            Write-Host 'AppConsole closed gracefully.'
+        }
     }
     else {
-        if ($service.Status -eq 'Running') { Write-Host '        ' $sName   'Service is running' -ForegroundColor green } 
-        else { Write-Host '        ' $sName 'Service is not running' -ForegroundColor Red }
+        Write-Host 'AppConsole is not running.'
     }
-    
-    Remove-Variable sName
 }
-Function Stop-RdConsole {
 
-    # get appConsole process
-    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
-    if ($appConsole) {
-        # try gracefully first
-        Write-Host 'is AppConsole closed?'
-        $appConsole.CloseMainWindow()
-        # kill after five seconds
-        Start-Sleep 3
-        if (!$appConsole) {
-            $appConsole | Stop-Process -Force
-            Write-Host 'AppConsole Killed'
-        }
-        
-    }
-    Remove-Variable appConsole
-    
-}
 Function Stop-RdService {
+    param()
 
-    # get RdService service
-    $rdService = Get-Service OSLRDServer -ErrorAction SilentlyContinue
-    if ($rdService.Status -ne 'Stopped') {
-        # try gracefully first
-        Stop-Service $rdService
-        # kill after five seconds
-        Start-Sleep 3
-        if ($rdService.Status -ne 'Stopped') {
-            Stop-Process -name OSLRDServerService -Force
-            write-Host 'OSLRDService Killed'
-        }
-        write-Host 'OSLRDService now Stopped'
+    # Get RdService service
+    $rdService = Get-Service -Name OSLRDServer -ErrorAction SilentlyContinue
+
+    if (!$rdService) {
+        Write-Host 'OSLRDServer service is not installed on this computer.'
+        return
     }
-    Remove-Variable rdService
-    
+
+    # Stop service if it is running
+    if ($rdService.Status -ne 'Stopped') {
+        Write-Host 'Stopping OSLRDServer service...'
+
+        # Try stopping the service gracefully first
+        $rdService.Stop()
+
+        # Wait for the service to stop
+        $rdService.WaitForStatus('Stopped', '00:00:05')
+
+        # If the service is still running, force kill it
+        if ($rdService.Status -ne 'Stopped') {
+            Stop-Process -Name OSLRDServerService -Force
+            Write-Host 'OSLRDServer service killed.'
+        }
+    }
+
+    Write-Host 'OSLRDServer service stopped.'
 }
+
 Function Stop-OverOneMonitoring {
 
     # get OverOneMonitoring service
@@ -191,15 +215,23 @@ Function Stop-OverOneMonitoring {
     Remove-Variable OverOneMonitoring
     
 }
-Function Get-AppPath {
-    param ([Parameter (Mandatory = $true)] [string] $serviceName) 
+function Get-AppPath {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$serviceName
+    ) 
 
-    $service = Get-CimInstance -ClassName win32_service | Where-Object Name -eq $servicename
+    $service = Get-CimInstance -ClassName win32_service -Filter "Name='$serviceName'"
+    if (!$service) {
+        Write-Error "Service $serviceName not found"
+        return
+    }
+
     $serviceBinaryPath = if ($service.pathname -like '"*') { 
-    ($service.pathname -split '"')[1] # get path without quotes
+        ($service.pathname -split '"')[1] # get path without quotes
     }
     else {
-    (-split $service.pathname)[0] # get 1st token
+        (-split $service.pathname)[0] # get 1st token
     }
 
     return $serviceBinaryPath
@@ -425,8 +457,8 @@ Function main {
 
         Write-Host ''
         Write-Host ' Servizi:'
-        Get-Service-Status('OSLRDServer')
-        Get-Service-Status('OverOne Monitoring Service')
+        Get-ServiceStatus('OSLRDServer')
+        Get-ServiceStatus('OverOne Monitoring Service')
 
         Show-Menu
     
