@@ -1,17 +1,26 @@
-﻿#Start in Admin mode
-If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+﻿# Check if running in Administrator mode
+if (!( [Security.Principal.WindowsPrincipal]([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
 }
 
-Add-Type -Namespace net.same2u.WinApiHelper -Name IniFile -MemberDefinition @'
-  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-  // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
-  public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
-  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-  public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
-'@
+# Define the WinApiHelper class using Add-Type with here-string
+Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+
+namespace net.same2u.WinApiHelper {
+    public static class IniFile {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
+        public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
+    }
+}
+"@
+
 Clear-Host
+
 Function Get-IniValue {
     <#
     .SYNOPSIS
@@ -418,7 +427,7 @@ Function main {
         $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'        
     }
 
-    $IndirizzoIP = Get-NetIPAddress -AddressFamily ipV4 | Where-Object {$_.InterfaceAlias -eq "Ethernet"}
+    #$IndirizzoIP = Get-NetIPAddress -AddressFamily ipV4 | Where-Object {$_.InterfaceAlias -eq "Ethernet"}
 
         #############################################################################
         #                da Controllare                                             #
