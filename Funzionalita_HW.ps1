@@ -435,11 +435,6 @@ Function main {
 
         Show-Title
 
-        #Garbage collection
-        if (($i % 200) -eq 0) {
-            [System.GC]::Collect()
-        }
-
         if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
             Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red          
         }
@@ -504,11 +499,7 @@ Function main {
                 Copy-DsnToInit                
             }
             X {    
-                #[X] chiude script
-                #Garbage collection
-                if (($i % 200) -eq 0) {
-                    [System.GC]::Collect()
-                }   
+                #[X] chiude script               
                 Clear-Host   
                 Exit
             }
