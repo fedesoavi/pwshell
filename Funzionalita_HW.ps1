@@ -145,13 +145,14 @@ function Get-ServiceStatus {
     $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 
     if (-not $service) {
-        Write-Host "$ServiceName is not installed on this computer."
-    } else {
+        Write-Host "        $ServiceName is not installed on this computer."
+    }
+    else {
         $status = $service.Status
-        Write-Host "$ServiceName service is $status" -ForegroundColor $(switch ($status) {
-            'Running' { 'Green' }
-            default { 'Red' }
-        })
+        Write-Host "        $ServiceName service is $status" -ForegroundColor $(switch ($status) {
+                'Running' { 'Green' }
+                default { 'Red' }
+            })
     }
 }
 function Stop-RdConsole {
@@ -226,7 +227,7 @@ Function Stop-OverOneMonitoring {
 }
 function Get-AppPath {
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [string]$serviceName
     ) 
 
@@ -398,6 +399,12 @@ function Copy-DsnToInit {
 
 
 #Main-Function
+
+<# ------------- TODO ------------------
+- controllare bug su input pulsante
+- check su installazione va in errore se non presenti le voci reg capire come gestire
+
+#>
 Function main {
 
     #OverOne
@@ -427,38 +434,29 @@ Function main {
         $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'        
     }
 
-    #$IndirizzoIP = Get-NetIPAddress -AddressFamily ipV4 | Where-Object {$_.InterfaceAlias -eq "Ethernet"}
-
-        #############################################################################
-        #                da Controllare                                             #
-        #############################################################################
-        #--------------------------------------------------
-        #TODO eccezioni su porte firewall
-        #TODO auto firewall
-        #TODO get Machine LIST and check firewall     
-
-
-        #--------------------------------------------------
-
     while ($true) {
 
         Show-Title
 
+        #controlli
         if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
             Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red          
         }
+       
 
         Write-Host ''
-        Write-Host ' Segnali su tabella'
+        Write-Host ' INFORMAZIONI:'
 
         if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }        
         if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
-
+        Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
+            '' { write-host '        Non sono presenti nodi' -ForegroundColor green}
+            default { Write-Host '        Sono presenti nodi, questo è il nodo:',$nodo -ForegroundColor Yellow }
+        }
+      
         Write-Host ''
         Write-Host ' Indirizzi IP:'
         Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
-        Write-Host '        Indirizzo IP del PC: ' $IndirizzoIP
-
         Write-Host ''
         Write-Host ' Servizi:'
         Get-ServiceStatus('OSLRDServer')
@@ -471,7 +469,7 @@ Function main {
         Write-Host''   
 
         Switch ($key.Character) {
-            A{
+            A {
                 #[A] Forza Allineamento Init Servizio con init console
                 Sync-INIT-Console
             }
