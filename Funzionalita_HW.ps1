@@ -463,16 +463,14 @@ Function main {
         Get-ServiceStatus('OverOne Monitoring Service')
 
         Show-Menu
-    
-        write-output "Digitare la LETTERA del COMANDO:"
-        $key = $Host.UI.RawUI.ReadKey()
+        $key = Read-Host 'Digitare la lettera del comando e premere ENTER:'
         Write-Host''   
 
-        Switch ($key.Character) {
+        Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
                 Sync-INIT-Console
-            }
+            }   
             S {
                 # [S] per avviare la modalita servizio
                 Start-OslRdServerService
