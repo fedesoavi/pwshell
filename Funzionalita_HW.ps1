@@ -1,8 +1,8 @@
-﻿# Check if running in Administrator mode
+﻿<# # Check if running in Administrator mode
 if (!( [Security.Principal.WindowsPrincipal]([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
-}
+} #>
 
 # Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
@@ -246,7 +246,7 @@ function Get-AppPath {
 
     return $serviceBinaryPath
 }
-Function Sync-INIT-Console {
+Function Sync-InitConsole {
     #check init from service to appconsole if are equal
     if (Test-Path -Path $InitConsole -PathType Leaf) {
         if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
@@ -279,7 +279,6 @@ function Show-Menu {
     param (
         [string]$Title = 'Osl Debugger'
     )
-    Write-Host""
 
     Write-Host "================================================================================================
     "
@@ -401,7 +400,6 @@ function Copy-DsnToInit {
 #Main-Function
 
 <# ------------- TODO ------------------
-- controllare bug su input pulsante
 - check su installazione va in errore se non presenti le voci reg capire come gestire
 
 #>
@@ -443,7 +441,6 @@ Function main {
             Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red          
         }
        
-
         Write-Host ''
         Write-Host ' INFORMAZIONI:'
 
@@ -461,15 +458,29 @@ Function main {
         Write-Host ' Servizi:'
         Get-ServiceStatus('OSLRDServer')
         Get-ServiceStatus('OverOne Monitoring Service')
+        Write-Host ''
 
+        Write-Host ' Firewall:'
+        Get-NetFirewallProfile | Format-Table Name, @{
+            Label      = "Enabled"
+            Expression =
+            {
+                switch ($_.Enabled) {
+                    'True' { $color = '91'; break }
+                    default { $color = '0' }
+                }
+                $e = [char]27
+                "$e[${color}m$($_.Enabled)${e}[0m"
+            }
+        }
         Show-Menu
-        $key = Read-Host 'Digitare la lettera del comando e premere ENTER:'
-        Write-Host''   
+        $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
+        Write-Host''
 
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
-                Sync-INIT-Console
+                Sync-InitConsole
             }   
             S {
                 # [S] per avviare la modalita servizio
@@ -502,9 +513,6 @@ Function main {
             D {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit                
-            }
-            F{
-                Get-NetFirewallProfile -PolicyStore ActiveStore
             }
             X {    
                 #[X] chiude script               
