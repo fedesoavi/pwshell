@@ -1,17 +1,26 @@
-﻿#Start in Admin mode
-<# If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+﻿# Check if running in Administrator mode
+if (!( [Security.Principal.WindowsPrincipal]([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
-} #>
+}
 
-Add-Type -Namespace net.same2u.WinApiHelper -Name IniFile -MemberDefinition @'
-  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-  // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
-  public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
-  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-  public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
-'@
+# Define the WinApiHelper class using Add-Type with here-string
+Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+
+namespace net.same2u.WinApiHelper {
+    public static class IniFile {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
+        public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
+    }
+}
+"@
+
 Clear-Host
+
 Function Get-IniValue {
     <#
     .SYNOPSIS
@@ -126,60 +135,85 @@ Function Set-IniValue {
     if (-not $ok) { Throw "Updating INI file failed: $fullPath" }
         
 }
-Function Get-ServiceStatus {
+function Get-ServiceStatus {
+    [CmdletBinding()]
     param(
-        [Parameter (Mandatory = $true)] $sName
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceName
     )
-    # Purpose: To check whether a service is installed
-    $service = Get-Service -display $sName -ErrorAction SilentlyContinue
-    
-    If ( -not $service ) {
-        Write-Host $sName  ' is not installed on this computer.'
+
+    $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+
+    if (-not $service) {
+        Write-Host "        $ServiceName is not installed on this computer."
     }
     else {
-        if ($service.Status -eq 'Running') { Write-Host '        ' $sName   'Service is running' -ForegroundColor green } 
-        else { Write-Host '        ' $sName 'Service is not running' -ForegroundColor Red }
+        $status = $service.Status
+        Write-Host "        $ServiceName service is $status" -ForegroundColor $(switch ($status) {
+                'Running' { 'Green' }
+                default { 'Red' }
+            })
     }
-    
-    Remove-Variable sName
 }
-Function Stop-RdConsole {
-
-    # get appConsole process
+function Stop-RdConsole {
+    [CmdletBinding()]
+    param()
+    # Get the process object for OSLRDServer
     $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
-    if ($appConsole) {
-        # try gracefully first
-        Write-Host 'is AppConsole closed?'
-        $appConsole.CloseMainWindow()
-        # kill after five seconds
-        Start-Sleep 3
-        if (!$appConsole) {
-            $appConsole | Stop-Process -Force
-            Write-Host 'AppConsole Killed'
-        }
-        
-    }
-    Remove-Variable appConsole
-    
-}
-Function Stop-RdService {
 
-    # get RdService service
-    $rdService = Get-Service OSLRDServer -ErrorAction SilentlyContinue
-    if ($rdService.Status -ne 'Stopped') {
-        # try gracefully first
-        Stop-Service $rdService
-        # kill after five seconds
-        Start-Sleep 3
-        if ($rdService.Status -ne 'Stopped') {
-            Stop-Process -name OSLRDServerService -Force
-            write-Host 'OSLRDService Killed'
+    if ($appConsole) {
+        Write-Host 'Trying to gracefully close the AppConsole...'
+        # Try to close the main window gracefully first
+        $appConsole.CloseMainWindow()
+
+        # Wait for 5 seconds to let the window close
+        Start-Sleep -Seconds 5
+
+        # Check if the process is still running and kill it if needed
+        if (!$appConsole.HasExited) {
+            Write-Host 'AppConsole did not close gracefully. Killing the process...'
+            $appConsole | Stop-Process -Force
         }
-        write-Host 'OSLRDService now Stopped'
+        else {
+            Write-Host 'AppConsole closed gracefully.'
+        }
     }
-    Remove-Variable rdService
-    
+    else {
+        Write-Host 'AppConsole is not running.'
+    }
 }
+
+Function Stop-RdService {
+    param()
+
+    # Get RdService service
+    $rdService = Get-Service -Name OSLRDServer -ErrorAction SilentlyContinue
+
+    if (!$rdService) {
+        Write-Host 'OSLRDServer service is not installed on this computer.'
+        return
+    }
+
+    # Stop service if it is running
+    if ($rdService.Status -ne 'Stopped') {
+        Write-Host 'Stopping OSLRDServer service...'
+
+        # Try stopping the service gracefully first
+        $rdService.Stop()
+
+        # Wait for the service to stop
+        $rdService.WaitForStatus('Stopped', '00:00:05')
+
+        # If the service is still running, force kill it
+        if ($rdService.Status -ne 'Stopped') {
+            Stop-Process -Name OSLRDServerService -Force
+            Write-Host 'OSLRDServer service killed.'
+        }
+    }
+
+    Write-Host 'OSLRDServer service stopped.'
+}
+
 Function Stop-OverOneMonitoring {
 
     # get OverOneMonitoring service
@@ -191,15 +225,23 @@ Function Stop-OverOneMonitoring {
     Remove-Variable OverOneMonitoring
     
 }
-Function Get-AppPath {
-    param ([Parameter (Mandatory = $true)] [string] $serviceName) 
+function Get-AppPath {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$serviceName
+    ) 
 
-    $service = Get-CimInstance -ClassName win32_service | Where-Object Name -eq $servicename
+    $service = Get-CimInstance -ClassName win32_service -Filter "Name='$serviceName'"
+    if (!$service) {
+        Write-Error "Service $serviceName not found"
+        return
+    }
+
     $serviceBinaryPath = if ($service.pathname -like '"*') { 
-    ($service.pathname -split '"')[1] # get path without quotes
+        ($service.pathname -split '"')[1] # get path without quotes
     }
     else {
-    (-split $service.pathname)[0] # get 1st token
+        (-split $service.pathname)[0] # get 1st token
     }
 
     return $serviceBinaryPath
@@ -223,7 +265,7 @@ Function Sync-InitConsole {
         Clear-Host
     }
 }
-function show-title {
+function Show-Title {
     Write-Host '                                                         
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
  ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
@@ -237,7 +279,6 @@ function Show-Menu {
     param (
         [string]$Title = 'Osl Debugger'
     )
-    Write-Host""
 
     Write-Host "================================================================================================
     "
@@ -257,7 +298,7 @@ function Show-Menu {
     [X]: Chiude script
     " 
 }
-function start-OslRdServerService {
+function Start-OslRdServerService {
     # [S] per avviare la modalita servizio
     Write-Host 'Avvio Servizio...' -ForegroundColor Green
     Stop-RdConsole
@@ -289,7 +330,7 @@ function Restart-Overone {
         Start-Sleep 2
         Start-Service  OverOneMonitoringWindowsService  
         Write-Host 'Aspetto i segnali...'   
-        Start-Sleep 5
+        Start-Sleep 15
         Invoke-Item $LogOverOne
     }
     else {
@@ -299,17 +340,15 @@ function Restart-Overone {
 function Open-Init {
     #[I] per la lettura del Init di OSLRDServer
     Write-Host 'Apro Init...' -ForegroundColor Green
-    Start-Process notepad.exe $InitService -NoNewWindow -Wait
+    Start-Process notepad.exe $InitService -NoNewWindow -Wait 
     write-host 'Controllo modifiche...' -ForegroundColor Green
-    Sync-InitConsole
 }
 
 function Edit-Tcplistener {
     #[L] Per modificare TCPListener All'interno del init
     $IP = Read-Host -Prompt 'Inserisci IP da modificare '
     Set-IniValue $InitService 'Config' 'serverTCPListener' $IP    
-    Write-Host 'scritto ip...' -ForegroundColor Green
-    Sync-InitConsole
+    Write-Host 'scritto ip...' -ForegroundColor Green   
 }
 function Switch-SegnaliSuTabella {
     #[T] ON/OFF segnali su Tabella
@@ -351,8 +390,6 @@ function Copy-DsnToInit {
 
         $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD' 
         Set-IniValue $InitService 'Config' 'database' $dsnPassword
-
-        Sync-InitConsole
     }
     else {
         Write-Host 'cancelled'
@@ -361,6 +398,11 @@ function Copy-DsnToInit {
 
 
 #Main-Function
+
+<# ------------- TODO ------------------
+- check su installazione va in errore se non presenti le voci reg capire come gestire
+
+#>
 Function main {
 
     #OverOne
@@ -390,61 +432,59 @@ Function main {
         $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'        
     }
 
-    $IndirizzoIP = Get-NetIPAddress -AddressFamily ipV4 | Where-Object {$_.InterfaceAlias -eq "Ethernet"}
-
-        #############################################################################
-        #                da Controllare                                             #
-        #############################################################################
-        #--------------------------------------------------
-        #TODO eccezioni su porte firewall
-        #TODO auto firewall
-        #TODO get Machine LIST and check firewall     
-
-        #--------------------------------------------------
-
     while ($true) {
 
-        show-title
+        Show-Title
 
-        #Garbage collection
-        if (($i % 200) -eq 0) {
-            [System.GC]::Collect()
-        }
-
+        #controlli
         if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
             Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red          
         }
-
+       
         Write-Host ''
-        Write-Host ' Segnali su tabella'
+        Write-Host ' INFORMAZIONI:'
 
         if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }        
         if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
-
+        Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
+            '' { write-host '        Non sono presenti nodi' -ForegroundColor green}
+            default { Write-Host '        Sono presenti nodi, questo è il nodo:',$nodo -ForegroundColor Yellow }
+        }
+      
         Write-Host ''
         Write-Host ' Indirizzi IP:'
         Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
-        Write-Host '        Indirizzo IP del PC: ' $IndirizzoIP
-
         Write-Host ''
         Write-Host ' Servizi:'
         Get-ServiceStatus('OSLRDServer')
         Get-ServiceStatus('OverOne Monitoring Service')
+        Write-Host ''
 
+        Write-Host ' Firewall:'
+        Get-NetFirewallProfile | Format-Table Name, @{
+            Label      = "Enabled"
+            Expression =
+            {
+                switch ($_.Enabled) {
+                    'True' { $color = '91'; break }
+                    default { $color = '0' }
+                }
+                $e = [char]27
+                "$e[${color}m$($_.Enabled)${e}[0m"
+            }
+        }
         Show-Menu
-    
-        write-output "Digitare la LETTERA del COMANDO:"
-        $key = $Host.UI.RawUI.ReadKey()
-        Write-Host''   
+        $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
+        Write-Host''
 
-        Switch ($key.Character) {
-            A{
+        Switch ($key) {
+            A {
                 #[A] Forza Allineamento Init Servizio con init console
                 Sync-InitConsole
-            }
+            }   
             S {
                 # [S] per avviare la modalita servizio
-                start-OslRdServerService
+                Start-OslRdServerService
             }
             C {
                 #[C] per avviare la modalita console
@@ -474,15 +514,8 @@ Function main {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit                
             }
-            F{
-                Get-NetFirewallProfile -PolicyStore ActiveStore
-            }
             X {    
-                #[X] chiude script
-                #Garbage collection
-                if (($i % 200) -eq 0) {
-                    [System.GC]::Collect()
-                }   
+                #[X] chiude script               
                 Clear-Host   
                 Exit
             }
