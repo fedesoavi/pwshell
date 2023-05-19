@@ -1,4 +1,4 @@
-﻿#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
+#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
 $ErrorActionPreference = 'SilentlyContinue'
 
