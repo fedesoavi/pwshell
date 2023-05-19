@@ -1,8 +1,9 @@
-﻿# Check if running in Administrator mode
+﻿
 if (!( [Security.Principal.WindowsPrincipal]([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     Exit
 }
+# Check if running in Administrator mode
 
 # Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
