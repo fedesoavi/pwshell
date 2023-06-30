@@ -1,4 +1,4 @@
-#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
+﻿#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
 $ErrorActionPreference = 'SilentlyContinue'
 
@@ -15,7 +15,7 @@ $Ask = 'Do you want to run this as an Administrator?
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     $Prompt = [System.Windows.MessageBox]::Show($Ask, "Run as an Administrator or not?", $Button, $ErrorIco) 
     Switch ($Prompt) {
-        #This will debloat Windows 10
+        
         Yes {
             Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue."
             Start-Process PowerShell.exe -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"{0}`"" -f $PSCommandPath) -Verb RunAs
@@ -238,7 +238,7 @@ Function Stop-RdService {
 }
 
 Function Stop-OverOneMonitoring {
-
+    #lo uso per killare il servizio da interfaccia
     # get OverOneMonitoring service
     $OverOneMonitoring = Get-Service OverOneMonitoringWindowsService -ErrorAction SilentlyContinue
     if ($OverOneMonitoring.Status -ne 'Stopped') {
@@ -301,31 +301,40 @@ function Show-Title {
 function Show-Menu {
     param (
         [string]$Title = 'Osl Debugger'
-    )
-
-    Write-Host "================================================================================================
-    "
-    
-    write-host "Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
-    
-    Write-Host "
-    [A]: Forza Allineamento Init Servizio con init console
-    [C]: Avviare OSLRDServer in Console
-    [S]: Avviare Servizio OSLRDServer
-    [K]: Killare tutti i servizi
-    [O]: Riavviare OverOneMonitoring, cancello il LOG e lo apro
-    [I]: Apro Init di OSLRDServer
-    [L]: Modifica TCP Listener All'interno del init
-    [T]: ON/OFF segnali su Tabella
-    [D]: Copia da Dsn
-    [X]: Chiude script
-    " 
+    )    
+    write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
+    write-host "======================================================================================================="       
+    Write-Host "= [A] Forza Allineamento Init Servizio con init console"
+    Write-Host "= [I] per la lettura del Init di OSLRDServer"
+    Write-Host "= [L] Per modificare TCPListener All'interno del init"
+    Write-Host "= [T] ON/OFF segnali su Tabella"
+    Write-Host "= [D] Copio dati di un dsn dentro init servizio"
+    Write-Host "======= Gestione servizi =============================="
+    Write-Host "= [K] per arrestare tutti i servizi"
+    Write-Host "========== Servizio OslRdServer ======================="
+    Write-Host "=   [S] per avviare la modalita servizio OSlRdServer"
+    Write-Host "=   [F] per Fermare la modalita servizio OSlRdServer"
+    Write-Host "========== Console OslRdServer ========================"
+    Write-Host "=   [C] per avviare la modalita console"
+    Write-Host "=   [B] per fermare la modalita console"
+    Write-Host "========== Overone ===================================="
+    Write-Host "=   [O] per riavviare il servizio OverOneMonitoring e cancellare il LOG"
+    Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
+    Write-Host "======================================================================================================"
+    Write-Host " [X] chiude script" 
 }
 function Start-OslRdServerService {
     # [S] per avviare la modalita servizio
-    Write-Host 'Avvio Servizio...' -ForegroundColor Green
+    Write-Host 'Avvio Servizio OslRdServer...' -ForegroundColor Green
     Stop-RdConsole
     Restart-Service  OSLRDServer
+    Get-Service OSLRDServer
+}
+function Stop-OslRdServerService {
+    # [F] per avviare la modalita servizio
+    Write-Host 'Fermo Servizio OslRdServer...' -ForegroundColor Green
+    Stop-RdConsole
+    Stop-Service  OSLRDServer
     Get-Service OSLRDServer
 }
 
@@ -335,6 +344,11 @@ function Start-OslRdServerConsole {
     Stop-RdConsole
     Stop-RdService
     Start-Process $pathExeConsole -Verb RunAs
+}
+function Stop-OslRdServerConsole {
+    #[B] per avviare la modalita console
+    Write-Host 'Stop Console...' -ForegroundColor Green
+    Stop-RdConsole
 }
 function Stop-AllService {                    
     #[K] per arrestare il servizio o console e OverOne
@@ -419,11 +433,23 @@ function Copy-DsnToInit {
     }
 }
 
+function show-FirewallStatus {
+    
+    $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
+    if ($enabledFirewalls) {
+        Write-Host ' Firewall:'
+        Write-Host ' Firewall Active'  -ForegroundColor Yellow
+    }
+}
+
+
+
 
 #Main-Function
 
 <# ------------- TODO ------------------
 - check su installazione va in errore se non presenti le voci reg capire come gestire
+- gestire errori nelle funzioni
 
 #>
 Function main {
@@ -473,54 +499,25 @@ Function main {
             '' { write-host '        Non sono presenti nodi' -ForegroundColor green}
             default { Write-Host '        Sono presenti nodi, questo è il nodo:',$nodo -ForegroundColor Yellow }
         }
-      
-        Write-Host ''
         Write-Host ' Indirizzi IP:'
         Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
-        Write-Host ''
         Write-Host ' Servizi:'
         Get-ServiceStatus('OSLRDServer')
-        Get-ServiceStatus('OverOne Monitoring Service')
-        Write-Host ''
+        Get-ServiceStatus('OverOne Monitoring Service')    
 
-        Write-Host ' Firewall:'
-        Get-NetFirewallProfile | Format-Table Name, @{
-            Label      = "Enabled"
-            Expression =
-            {
-                switch ($_.Enabled) {
-                    'True' { $color = '91'; break }
-                    default { $color = '0' }
-                }
-                $e = [char]27
-                "$e[${color}m$($_.Enabled)${e}[0m"
-            }
-        }
+        show-FirewallStatus    
+        
         Show-Menu
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
 
+        #opzioni [A I L T D S C K O X F B]
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
                 Sync-InitConsole
             }   
-            S {
-                # [S] per avviare la modalita servizio
-                Start-OslRdServerService
-            }
-            C {
-                #[C] per avviare la modalita console
-                Start-OslRdServerConsole
-            }
-            K {
-                #[K] per arrestare il servizio o console e OverOne
-                Stop-AllService
-            }
-            O {
-                #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
-                Restart-Overone
-            }
+          
             I {
                 #[I] per la lettura del Init di OSLRDServer
                 Open-Init                
@@ -537,6 +534,39 @@ Function main {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit                
             }
+            ########## Gestione servizi ###############
+            K {
+                #[K] per arrestare tutti i servizi
+                Stop-AllService
+            }
+            ########## servizio OslRdServer ##########
+            S {
+                # [S] per avviare la modalita servizio OSlRdServer
+                Start-OslRdServerService
+            }
+            F {
+                # [F] per Fermare la modalita servizio OSlRdServer
+                Stop-OslRdServerService
+            }
+            ########## Console OslRdServer ##########
+            C {
+                #[C] per avviare la modalita console
+                Start-OslRdServerConsole
+            }
+            B {
+                #[B] per fermare la modalita console
+                Stop-OslRdServerConsole
+            }            
+            ########## Overone ##########
+            O {
+                #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
+                Restart-Overone
+            } 
+            U{
+                #[U] per fermare il servizio OverOneMonitoring
+                Stop-OverOneMonitoring                
+            }            
+            #######################################
             X {    
                 #[X] chiude script               
                 Clear-Host   
