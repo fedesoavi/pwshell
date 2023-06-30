@@ -302,6 +302,7 @@ function Show-Menu {
     param (
         [string]$Title = 'Osl Debugger'
     )    
+    Write-Host""
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================="       
     Write-Host "= [A] Forza Allineamento Init Servizio con init console"
@@ -322,6 +323,7 @@ function Show-Menu {
     Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
     Write-Host "======================================================================================================"
     Write-Host " [X] chiude script" 
+    Write-Host""
 }
 function Start-OslRdServerService {
     # [S] per avviare la modalita servizio
