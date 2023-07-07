@@ -323,6 +323,7 @@ function Show-Menu {
     Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
     Write-Host "======================================================================================================"
     Write-Host " [X] chiude script" 
+    Write-Host " [R] Reload script"
     Write-Host""
 }
 function Start-OslRdServerService {
@@ -573,6 +574,10 @@ Function main {
                 #[X] chiude script               
                 Clear-Host   
                 Exit
+            }
+            R{
+                #[R] Reload script  
+                Clear-Host 
             }
             default { write-host 'Invalid option' -ForegroundColor red }
         }
