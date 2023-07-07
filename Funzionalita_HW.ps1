@@ -12,7 +12,7 @@ $Ask = 'Do you want to run this as an Administrator?
         
         Select "Cancel" to stop the script.'
 
-<# If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
     $Prompt = [System.Windows.MessageBox]::Show($Ask, "Run as an Administrator or not?", $Button, $ErrorIco) 
     Switch ($Prompt) {
         
@@ -25,7 +25,7 @@ $Ask = 'Do you want to run this as an Administrator?
             Break
         }
     }
-} #>
+}
 
 # Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
