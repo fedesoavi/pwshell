@@ -1,1 +1,1 @@
-Invoke-WebRequest -UseBasicParsing https://raw.githubusercontent.com/fedesoavi/pwshell/main/Funzionalita_HW.ps1 | Invoke-Expression
+Invoke-Expression (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/fedesoavi/pwshell/main/Funzionalita_HW.ps1')
