@@ -307,6 +307,7 @@ function Show-Menu {
     write-host "======================================================================================================="       
     Write-Host "= [A] Forza Allineamento Init Servizio con init console"
     Write-Host "= [I] per la lettura del Init di OSLRDServer"
+    Write-Host "= [v] "
     Write-Host "= [L] Per modificare TCPListener All'interno del init"
     Write-Host "= [T] ON/OFF segnali su Tabella"
     Write-Host "= [D] Copio dati di un dsn dentro init servizio"
@@ -445,16 +446,6 @@ function show-FirewallStatus {
     }
 }
 
-
-
-
-#Main-Function
-
-<# ------------- TODO ------------------
-- check su installazione va in errore se non presenti le voci reg capire come gestire
-- gestire errori nelle funzioni
-
-#>
 Function main {
 
     #OverOne
@@ -499,8 +490,8 @@ Function main {
         if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }        
         if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
         Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
-            '' { write-host '        Non sono presenti nodi' -ForegroundColor green}
-            default { Write-Host '        Sono presenti nodi, questo è il nodo:',$nodo -ForegroundColor Yellow }
+            '' { write-host '        Non sono presenti nodi' -ForegroundColor green }
+            default { Write-Host '        Sono presenti nodi, questo è il nodo:', $nodo -ForegroundColor Yellow }
         }
         Write-Host ' Indirizzi IP:'
         Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
@@ -514,7 +505,7 @@ Function main {
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
 
-        #opzioni [A I L T D S C K O X F B]
+        #opzioni [A I L T D S C K O X F B R V]
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
@@ -536,6 +527,28 @@ Function main {
             D {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit                
+            }
+            V {
+                #[V] Apri Configuratore Collegamenti
+                
+                $ps = Start-Process -PassThru -FilePath (join-Path -path $pathGp90OslRdServer -childpath '\ConfiguratoreCollegamenti\ConfiguratoreCollegamenti.exe') -WindowStyle Normal
+
+                $wshell = New-Object -ComObject wscript.shell
+
+                # Wait until activating the target process succeeds.
+                # Note: You may want to implement a timeout here.
+                while (-not $wshell.AppActivate($ps.Id)) {
+                    Start-Sleep -MilliSeconds 200
+                }
+
+                $wshell.SendKeys('osl')
+                Sleep 0.5
+                $wshell.SendKeys('{TAB}')
+                Sleep 0.5
+                $wshell.SendKeys('Osl5888')
+                sleep 0.5
+                $wshell.SendKeys('{ENTER}')
+
             }
             ########## Gestione servizi ###############
             K {
@@ -565,7 +578,7 @@ Function main {
                 #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
                 Restart-Overone
             } 
-            U{
+            U {
                 #[U] per fermare il servizio OverOneMonitoring
                 Stop-OverOneMonitoring                
             }            
@@ -575,7 +588,7 @@ Function main {
                 Clear-Host   
                 Exit
             }
-            R{
+            R {
                 #[R] Reload script  
                 Clear-Host 
             }
