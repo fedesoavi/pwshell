@@ -297,7 +297,6 @@ function Show-Title {
   ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██
   ' 
 }
-
 function Show-Menu {
     param (
         [string]$Title = 'Osl Debugger'
@@ -307,7 +306,7 @@ function Show-Menu {
     write-host "======================================================================================================="       
     Write-Host "= [A] Forza Allineamento Init Servizio con init console"
     Write-Host "= [I] per la lettura del Init di OSLRDServer"
-    Write-Host "= [v] "
+    Write-Host "= [v] Apri Configuratore Collegamenti"
     Write-Host "= [L] Per modificare TCPListener All'interno del init"
     Write-Host "= [T] ON/OFF segnali su Tabella"
     Write-Host "= [D] Copio dati di un dsn dentro init servizio"
@@ -341,7 +340,6 @@ function Stop-OslRdServerService {
     Stop-Service  OSLRDServer
     Get-Service OSLRDServer
 }
-
 function Start-OslRdServerConsole {
     #[C] per avviare la modalita console
     Write-Host 'Avvio Console...' -ForegroundColor Green
@@ -384,7 +382,6 @@ function Open-Init {
     Start-Process notepad.exe $InitService -NoNewWindow -Wait 
     write-host 'Controllo modifiche...' -ForegroundColor Green
 }
-
 function Edit-Tcplistener {
     #[L] Per modificare TCPListener All'interno del init
     $IP = Read-Host -Prompt 'Inserisci IP da modificare '
@@ -436,7 +433,6 @@ function Copy-DsnToInit {
         Write-Host 'cancelled'
     }
 }
-
 function show-FirewallStatus {
     
     $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
@@ -445,7 +441,29 @@ function show-FirewallStatus {
         Write-Host ' Firewall Active'  -ForegroundColor Yellow
     }
 }
+function Open-ConfiguraCollegamenti {
+                    
+    #[V] Apri Configuratore Collegamenti
+    
+    $ps = Start-Process -PassThru -FilePath (join-Path -path $pathGp90OslRdServer -childpath '\ConfiguratoreCollegamenti\ConfiguratoreCollegamenti.exe') -WindowStyle Normal
 
+    $wshell = New-Object -ComObject wscript.shell
+
+    # Wait until activating the target process succeeds.
+    # Note: You may want to implement a timeout here.
+    while (-not $wshell.AppActivate($ps.Id)) {
+        Start-Sleep -MilliSeconds 200
+    }
+
+    $wshell.SendKeys('osl')
+    Sleep 0.5
+    $wshell.SendKeys('{TAB}')
+    Sleep 0.5
+    $wshell.SendKeys('Osl5888')
+    sleep 0.5
+    $wshell.SendKeys('{ENTER}')
+
+}
 Function main {
 
     #OverOne
@@ -527,28 +545,10 @@ Function main {
             D {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit                
-            }
+            } 
             V {
                 #[V] Apri Configuratore Collegamenti
-                
-                $ps = Start-Process -PassThru -FilePath (join-Path -path $pathGp90OslRdServer -childpath '\ConfiguratoreCollegamenti\ConfiguratoreCollegamenti.exe') -WindowStyle Normal
-
-                $wshell = New-Object -ComObject wscript.shell
-
-                # Wait until activating the target process succeeds.
-                # Note: You may want to implement a timeout here.
-                while (-not $wshell.AppActivate($ps.Id)) {
-                    Start-Sleep -MilliSeconds 200
-                }
-
-                $wshell.SendKeys('osl')
-                Sleep 0.5
-                $wshell.SendKeys('{TAB}')
-                Sleep 0.5
-                $wshell.SendKeys('Osl5888')
-                sleep 0.5
-                $wshell.SendKeys('{ENTER}')
-
+                Open-ConfiguraCollegamenti                
             }
             ########## Gestione servizi ###############
             K {
