@@ -528,8 +528,7 @@ Function main {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
                 Sync-InitConsole
-            }   
-          
+            }          
             I {
                 #[I] per la lettura del Init di OSLRDServer
                 Open-Init                
