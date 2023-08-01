@@ -486,6 +486,7 @@ function Show-Menu {
     Write-Host "= [L] Per modificare TCPListener All'interno del init"
     Write-Host "= [T] ON/OFF segnali su Tabella"
     Write-Host "= [D] Copio dati di un dsn dentro init servizio"
+    write-Host "= [E] Check TCP servizio o console OSL"
     Write-Host "======= Gestione servizi =============================="
     Write-Host "= [K] per arrestare tutti i servizi"
     Write-Host "========== Servizio OslRdServer ======================="
@@ -629,6 +630,7 @@ Function main {
                 Exit
             }
             E{
+                #[E] Check TCP servizio o console OSL
                Get-TCPOsl
             }
             R {
