@@ -1,6 +1,16 @@
-﻿#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
+﻿<# TO DO:
+- check error handling
+- check osl socket traffic
+    Get-NetTCPConnection -owningprocess [PID]
 
-$ErrorActionPreference = 'SilentlyContinue'
+
+- redirect gp90 folder location
+ #>
+
+
+#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
+
+#$ErrorActionPreference = 'SilentlyContinue'
 
 $Button = [System.Windows.MessageBoxButton]::YesNoCancel
 $ErrorIco = [System.Windows.MessageBoxImage]::Error
@@ -9,13 +19,13 @@ $Ask = 'Do you want to run this as an Administrator?
         Select "Yes" to Run as an Administrator
 
         Select "No" to not run this as an Administrator
-        
+
         Select "Cancel" to stop the script.'
 
 If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
-    $Prompt = [System.Windows.MessageBox]::Show($Ask, "Run as an Administrator or not?", $Button, $ErrorIco) 
+    $Prompt = [System.Windows.MessageBox]::Show($Ask, "Run as an Administrator or not?", $Button, $ErrorIco)
     Switch ($Prompt) {
-        
+
         Yes {
             Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue."
             Start-Process PowerShell.exe -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"{0}`"" -f $PSCommandPath) -Verb RunAs
@@ -48,8 +58,8 @@ Function Get-IniValue {
     <#
     .SYNOPSIS
     Gets a given entry's value from an INI file, as a string.
-    Optionally *enumerates* elements of the file: 
-    * section names (if -Section is omitted) 
+    Optionally *enumerates* elements of the file:
+    * section names (if -Section is omitted)
     * entry keys in a given section (if -Key is omitted)
     can be returned.
     .EXAMPLE
@@ -65,7 +75,7 @@ Function Get-IniValue {
     Get-IniValue file.ini
     Returns the names of all sections in file file.ini.
     #>
-    [CmdletBinding()] 
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $LiteralPath,
         [string] $Section,
@@ -77,13 +87,13 @@ Function Get-IniValue {
     $enumerate = $false
     if (-not $PSBoundParameters.ContainsKey('Section')) { $Section = [NullString]::Value; $enumerate = $true }
     if (-not $PSBoundParameters.ContainsKey('Key')) { $Key = [NullString]::Value; $enumerate = $true }
-    
-    # Convert the path to an *absolute* one, since .NET's and the WinAPI's 
+
+    # Convert the path to an *absolute* one, since .NET's and the WinAPI's
     # current dir. is usually differs from PowerShell's.
     $fullPath = Convert-Path -ErrorAction Stop -LiteralPath $LiteralPath
     $bufferCharCount = 0
     $bufferChunkSize = 1024 # start with reasonably large default value.
-    
+
     do {
         $bufferCharCount += $bufferChunkSize
         # Note: We MUST use raw byte buffers, because [System.Text.StringBuilder] doesn't support
@@ -93,7 +103,7 @@ Function Get-IniValue {
         #       It is only ever 0 if the buffer char. count is pointlessly small (1 with single NUL, 2 with double NUL)
         $copiedCharCount = [net.same2u.WinApiHelper.IniFile]::GetPrivateProfileString($Section, $Key, $DefaultValue, $buffer, $bufferCharCount, $fullPath)
     } while ($copiedCharCount -ne 0 -and $copiedCharCount -eq $bufferCharCount - (1, 2)[$enumerate]) # Check to see if the full value was retrieved or whether the buffer was too small.
-      
+
     # Convert the byte buffer contents back to a string.
     if ($copiedCharCount -eq 0) {
         # Nothing was copied (non-existent section or entry or empty value) - return the empty string.
@@ -105,7 +115,7 @@ Function Get-IniValue {
         # If a specific value is being retrieved, this splitting is an effective no-op.
         [Text.Encoding]::Unicode.GetString($buffer, 0, ($copiedCharCount - (0, 1)[$enumerate]) * 2) -split "`0"
     }
-}  
+}
 Function Set-IniValue {
     <#
         .SYNOPSIS
@@ -128,7 +138,7 @@ Function Set-IniValue {
         Set-IniValue file.ini section1
         Deletes the entire section section1 from file file.ini.
         #>
-    [CmdletBinding()] 
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)] [string] $LiteralPath,
         [Parameter(Mandatory)] [string] $Section,
@@ -139,16 +149,16 @@ Function Set-IniValue {
     # values are recognized as requests to *delete* entries.
     if (-not $PSBoundParameters.ContainsKey('Key')) { $Key = [NullString]::Value }
     if (-not $PSBoundParameters.ContainsKey('Value')) { $Value = [NullString]::Value }
-        
-    # Convert the path to an *absolute* one, since .NET's and the WinAPI's 
+
+    # Convert the path to an *absolute* one, since .NET's and the WinAPI's
     # current dir. is usually differs from PowerShell's.
-    $fullPath = 
+    $fullPath =
     try {
         Convert-Path -ErrorAction Stop -LiteralPath $LiteralPath
     }
     catch {
         # Presumably, file doesn't exist, so we create it on deman, as WriteProfileString() would,
-        # EXCEPT that we want to create a "Unicode" (UTF-16LE) file, whereas WriteProfileString() 
+        # EXCEPT that we want to create a "Unicode" (UTF-16LE) file, whereas WriteProfileString()
         # - even when calling the Unicode version - ceates an *ANSI* file.
         # Note: As WriteProfileString() does, we require that the *directory* for the new file alreay exist.
         Set-Content -ErrorAction Stop -Encoding Unicode -LiteralPath $LiteralPath -Value @()
@@ -156,7 +166,7 @@ Function Set-IniValue {
     }
     $ok = [net.same2u.WinApiHelper.IniFile]::WritePrivateProfileString($Section, $Key, $Value, $fullPath)
     if (-not $ok) { Throw "Updating INI file failed: $fullPath" }
-        
+
 }
 function Get-ServiceStatus {
     [CmdletBinding()]
@@ -165,18 +175,27 @@ function Get-ServiceStatus {
         [string]$ServiceName
     )
 
+    $serviceDetails =""|Select-Object -Property state,message
+
     $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 
     if (-not $service) {
-        Write-Host "        $ServiceName is not installed on this computer."
+
+        $serviceDetails.message= "        $ServiceName is not installed on this computer."
     }
     else {
         $status = $service.Status
-        Write-Host "        $ServiceName service is $status" -ForegroundColor $(switch ($status) {
-                'Running' { 'Green' }
-                default { 'Red' }
-            })
+
+        $serviceDetails.state= $status -eq 'Running'
+
+        $color= $(switch ($status) {
+            'Running' { 'Green' }
+            default { 'Red' }})
+
+        $serviceDetails.message = @{Object = "        $ServiceName service is $status" ; ForegroundColor = $color}
     }
+    return $serviceDetails
+
 }
 function Stop-RdConsole {
     [CmdletBinding()]
@@ -236,23 +255,22 @@ Function Stop-RdService {
 
     Write-Host 'OSLRDServer service stopped.'
 }
-
 Function Stop-OverOneMonitoring {
     #lo uso per killare il servizio da interfaccia
     # get OverOneMonitoring service
     $OverOneMonitoring = Get-Service OverOneMonitoringWindowsService -ErrorAction SilentlyContinue
     if ($OverOneMonitoring.Status -ne 'Stopped') {
         Stop-Process -name OverOneMonitoringWindowsService -Force
-        write-Host 'OverOneMonitoring Killed'        
+        write-Host 'OverOneMonitoring Killed'
     }
     Remove-Variable OverOneMonitoring
-    
+
 }
 function Get-AppPath {
     param (
         [Parameter(Mandatory = $true)]
         [string]$serviceName
-    ) 
+    )
 
     $service = Get-CimInstance -ClassName win32_service -Filter "Name='$serviceName'"
     if (!$service) {
@@ -260,7 +278,7 @@ function Get-AppPath {
         return
     }
 
-    $serviceBinaryPath = if ($service.pathname -like '"*') { 
+    $serviceBinaryPath = if ($service.pathname -like '"*') {
         ($service.pathname -split '"')[1] # get path without quotes
     }
     else {
@@ -288,44 +306,6 @@ Function Sync-InitConsole {
         Clear-Host
     }
 }
-function Show-Title {
-    Write-Host '                                                         
-  ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████  
- ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██ 
- ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████  
- ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██ 
-  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██
-  ' 
-}
-function Show-Menu {
-    param (
-        [string]$Title = 'Osl Debugger'
-    )    
-    Write-Host""
-    write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
-    write-host "======================================================================================================="       
-    Write-Host "= [A] Forza Allineamento Init Servizio con init console"
-    Write-Host "= [I] per la lettura del Init di OSLRDServer"
-    Write-Host "= [v] Apri Configuratore Collegamenti"
-    Write-Host "= [L] Per modificare TCPListener All'interno del init"
-    Write-Host "= [T] ON/OFF segnali su Tabella"
-    Write-Host "= [D] Copio dati di un dsn dentro init servizio"
-    Write-Host "======= Gestione servizi =============================="
-    Write-Host "= [K] per arrestare tutti i servizi"
-    Write-Host "========== Servizio OslRdServer ======================="
-    Write-Host "=   [S] per avviare la modalita servizio OSlRdServer"
-    Write-Host "=   [F] per Fermare la modalita servizio OSlRdServer"
-    Write-Host "========== Console OslRdServer ========================"
-    Write-Host "=   [C] per avviare la modalita console"
-    Write-Host "=   [B] per fermare la modalita console"
-    Write-Host "========== Overone ===================================="
-    Write-Host "=   [O] per riavviare il servizio OverOneMonitoring e cancellare il LOG"
-    Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
-    Write-Host "======================================================================================================"
-    Write-Host " [X] chiude script" 
-    Write-Host " [R] Reload script"
-    Write-Host""
-}
 function Start-OslRdServerService {
     # [S] per avviare la modalita servizio
     Write-Host 'Avvio Servizio OslRdServer...' -ForegroundColor Green
@@ -352,12 +332,12 @@ function Stop-OslRdServerConsole {
     Write-Host 'Stop Console...' -ForegroundColor Green
     Stop-RdConsole
 }
-function Stop-AllService {                    
+function Stop-AllService {
     #[K] per arrestare il servizio o console e OverOne
     Write-Host 'Killo i servizi...' -ForegroundColor Green
     Stop-RdConsole
     Stop-RdService
-    Stop-OverOneMonitoring      
+    Stop-OverOneMonitoring
     Write-Host "Servizi FERMI"
 }
 function Restart-Overone {
@@ -367,8 +347,8 @@ function Restart-Overone {
         Stop-OverOneMonitoring
         Remove-Item -Path $LogOverOne -Force
         Start-Sleep 2
-        Start-Service  OverOneMonitoringWindowsService  
-        Write-Host 'Aspetto i segnali...'   
+        Start-Service  OverOneMonitoringWindowsService
+        Write-Host 'Aspetto i segnali...'
         Start-Sleep 15
         Invoke-Item $LogOverOne
     }
@@ -379,18 +359,18 @@ function Restart-Overone {
 function Open-Init {
     #[I] per la lettura del Init di OSLRDServer
     Write-Host 'Apro Init...' -ForegroundColor Green
-    Start-Process notepad.exe $InitService -NoNewWindow -Wait 
+    Start-Process notepad.exe $InitService -NoNewWindow -Wait
     write-host 'Controllo modifiche...' -ForegroundColor Green
 }
 function Edit-Tcplistener {
     #[L] Per modificare TCPListener All'interno del init
     $IP = Read-Host -Prompt 'Inserisci IP da modificare '
-    Set-IniValue $InitService 'Config' 'serverTCPListener' $IP    
-    Write-Host 'scritto ip...' -ForegroundColor Green   
+    Set-IniValue $InitService 'Config' 'serverTCPListener' $IP
+    Write-Host 'scritto ip...' -ForegroundColor Green
 }
 function Switch-SegnaliSuTabella {
     #[T] ON/OFF segnali su Tabella
-    $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico' 
+    $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico'
     $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
 
     if (($usoCollegamentoUnico -eq -1) -or ($segnaliSutabella -eq -1)) {
@@ -412,21 +392,21 @@ function Copy-DsnToInit {
     $title = "DSN overwrite"
     $question = "è stato selezionato il seguente dsn $($selection.Name) procedere?"
     $choices = '&Yes', '&No'
-    
+
     $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
     if ($decision -eq 0) {
         Write-Host 'confirmed'
 
         $dsnDatabase = Get-IniValue $selection.FullName 'ODBC' 'DATABASE'
         Set-IniValue $InitService 'Config' 'database' $dsnDatabase
-        
-        $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'                    
+
+        $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'
         Set-IniValue $InitService 'Config' 'database' $dsnServer
 
         $dsnUser = Get-IniValue $selection.FullName 'ODBC' 'UID'
         Set-IniValue $InitService 'Config' 'database' $dsnUser
 
-        $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD' 
+        $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD'
         Set-IniValue $InitService 'Config' 'database' $dsnPassword
     }
     else {
@@ -434,7 +414,7 @@ function Copy-DsnToInit {
     }
 }
 function show-FirewallStatus {
-    
+
     $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
     if ($enabledFirewalls) {
         Write-Host ' Firewall:'
@@ -442,9 +422,9 @@ function show-FirewallStatus {
     }
 }
 function Open-ConfiguraCollegamenti {
-                    
+
     #[V] Apri Configuratore Collegamenti
-    
+
     $ps = Start-Process -PassThru -FilePath (join-Path -path $pathGp90OslRdServer -childpath '\ConfiguratoreCollegamenti\ConfiguratoreCollegamenti.exe') -WindowStyle Normal
 
     $wshell = New-Object -ComObject wscript.shell
@@ -464,21 +444,79 @@ function Open-ConfiguraCollegamenti {
     $wshell.SendKeys('{ENTER}')
 
 }
+function Get-TCPOsl {
+     $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+     if  ((Get-ServiceStatus('OSLRDServer')).state)
+     {
+         write-Host 'service running'
+         $name='OSLRDServerService'
+     }elseif ($appConsole)
+     {
+         Write-Host 'console runnning'
+         $name='OSLRDServer'
+     }else {
+         Write-Host 'Console o servizio non attivo' -ForegroundColor Yellow
+         break
+     }
+
+     $ID_OslRdServer = Get-Process $name | Select-Object Id
+
+     Get-NetTCPConnection -owningprocess $ID_OslRdServer.Id
+     Read-Host -Prompt "Press any key to continue..."
+   }
+function Show-Title {
+    Write-Host '
+  ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████
+ ██    ██ ██      ██              ██   ██ ██      ██   ██ ██    ██ ██       ██       ██      ██   ██
+ ██    ██ ███████ ██              ██   ██ █████   ██████  ██    ██ ██   ███ ██   ███ █████   ██████
+ ██    ██      ██ ██              ██   ██ ██      ██   ██ ██    ██ ██    ██ ██    ██ ██      ██   ██
+  ██████  ███████ ███████         ██████  ███████ ██████   ██████   ██████   ██████  ███████ ██   ██
+  '
+}
+function Show-Menu {
+    param (
+        [string]$Title = 'Osl Debugger'
+    )
+    Write-Host""
+    write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
+    write-host "======================================================================================================="
+    Write-Host "= [A] Forza Allineamento Init Servizio con init console"
+    Write-Host "= [I] per la lettura del Init di OSLRDServer"
+    Write-Host "= [v] Apri Configuratore Collegamenti"
+    Write-Host "= [L] Per modificare TCPListener All'interno del init"
+    Write-Host "= [T] ON/OFF segnali su Tabella"
+    Write-Host "= [D] Copio dati di un dsn dentro init servizio"
+    Write-Host "======= Gestione servizi =============================="
+    Write-Host "= [K] per arrestare tutti i servizi"
+    Write-Host "========== Servizio OslRdServer ======================="
+    Write-Host "=   [S] per avviare la modalita servizio OSlRdServer"
+    Write-Host "=   [F] per Fermare la modalita servizio OSlRdServer"
+    Write-Host "========== Console OslRdServer ========================"
+    Write-Host "=   [C] per avviare la modalita console"
+    Write-Host "=   [B] per fermare la modalita console"
+    Write-Host "========== Overone ===================================="
+    Write-Host "=   [O] per riavviare il servizio OverOneMonitoring e cancellare il LOG"
+    Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
+    Write-Host "======================================================================================================"
+    Write-Host " [X] chiude script"
+    Write-Host " [R] Reload script"
+    Write-Host""
+}
 Function main {
 
     #OverOne
-    #check if Overone is installed   
+    #check if Overone is installed
     $is32OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
     $is64OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
     $isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
 
     if ($isOverOneInstalled) {
         $pathOverOneMonitor = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
-        $LogOverOne = Join-Path -Path ($pathOverOneMonitor + '\Log') -childpath (Get-ChildItem ($pathOverOneMonitor + '\Log' ) -Filter overOneMonitoringService.log -Name)        
+        $LogOverOne = Join-Path -Path ($pathOverOneMonitor + '\Log') -childpath (Get-ChildItem ($pathOverOneMonitor + '\Log' ) -Filter overOneMonitoringService.log -Name)
     }
 
     #GP90
-    #check if GP90 is installed   
+    #check if GP90 is installed
     $is32GP90Installed = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
     $is64GP90Installed = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
     $isGP90Installed = $is32GP90Installed -or $is64GP90Installed
@@ -487,10 +525,10 @@ Function main {
         $servicepath = Get-AppPath('OSLRDServer')
         $pathGp90 = $servicepath.Substring(0, $servicepath.IndexOf("Programmi_Aggiuntivi"))
         $pathGp90OslRdServer = split-path -path ($servicepath)
-        $PathDSN = Join-Path -Path $pathGp90 "\dsn"        
+        $PathDSN = Join-Path -Path $pathGp90 "\dsn"
         $InitService = Join-Path -Path $pathGp90OslRdServer -childpath (Get-ChildItem $pathGp90OslRdServer -Filter ?nit.ini -Name)
-        $InitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)        
-        $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'        
+        $InitConsole = Join-Path -Path ($pathGp90OslRdServer + '\AppConsole' )  -childpath (Get-ChildItem ($pathGp90OslRdServer + '\AppConsole' ) -Filter ?nit.ini -Name)
+        $pathExeConsole = join-Path -Path $pathGp90OslRdServer -childpath '\AppConsole\OSLRDServer.exe'
     }
 
     while ($true) {
@@ -499,13 +537,16 @@ Function main {
 
         #controlli
         if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
-            Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red          
+            Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red
         }
-       
+        $serviceOSLRDServer = (Get-ServiceStatus('OSLRDServer')).message
+        $serviceOverone = (Get-ServiceStatus('OverOne Monitoring Service')).message
+
+
         Write-Host ''
         Write-Host ' INFORMAZIONI:'
 
-        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }        
+        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }
         if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
         Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
             '' { write-host '        Non sono presenti nodi' -ForegroundColor green }
@@ -514,40 +555,40 @@ Function main {
         Write-Host ' Indirizzi IP:'
         Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
         Write-Host ' Servizi:'
-        Get-ServiceStatus('OSLRDServer')
-        Get-ServiceStatus('OverOne Monitoring Service')    
+        write-host @serviceOSLRDServer
+        write-host @serviceOverone
 
-        show-FirewallStatus    
-        
+        show-FirewallStatus
+
         Show-Menu
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
 
-        #opzioni [A I L T D S C K O X F B R V]
+        #opzioni [A I L T D S C K O X F B R V E]
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
                 Sync-InitConsole
-            }          
+            }
             I {
                 #[I] per la lettura del Init di OSLRDServer
-                Open-Init                
+                Open-Init
             }
             L {
                 #[L] Per modificare TCPListener All'interno del init
-                Edit-Tcplistener                        
+                Edit-Tcplistener
             }
             T {
                 #[T] ON/OFF segnali su Tabella
-                Switch-SegnaliSuTabella                
+                Switch-SegnaliSuTabella
             }
             D {
                 #[D] Copio dati di un dsn dentro init servizio
-                Copy-DsnToInit                
-            } 
+                Copy-DsnToInit
+            }
             V {
                 #[V] Apri Configuratore Collegamenti
-                Open-ConfiguraCollegamenti                
+                Open-ConfiguraCollegamenti
             }
             ########## Gestione servizi ###############
             K {
@@ -571,25 +612,28 @@ Function main {
             B {
                 #[B] per fermare la modalita console
                 Stop-OslRdServerConsole
-            }            
+            }
             ########## Overone ##########
             O {
                 #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
                 Restart-Overone
-            } 
+            }
             U {
                 #[U] per fermare il servizio OverOneMonitoring
-                Stop-OverOneMonitoring                
-            }            
+                Stop-OverOneMonitoring
+            }
             #######################################
-            X {    
-                #[X] chiude script               
-                Clear-Host   
+            X {
+                #[X] chiude script
+                Clear-Host
                 Exit
             }
+            E{
+               Get-TCPOsl
+            }
             R {
-                #[R] Reload script  
-                Clear-Host 
+                #[R] Reload script
+                Clear-Host
             }
             default { write-host 'Invalid option' -ForegroundColor red }
         }
