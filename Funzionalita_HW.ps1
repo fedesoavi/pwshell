@@ -13,7 +13,7 @@ Add-Type -AssemblyName PresentationFramework
 # Self-elevate the script if require
 $Button = [System.Windows.MessageBoxButton]::YesNoCancel
 $ErrorIco = [System.Windows.MessageBoxImage]::Error
-$Command=Invoke-Expression (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/fedesoavi/pwshell/main/Funzionalita_HW.ps1')
+$PSCommand=Invoke-Expression (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/fedesoavi/pwshell/main/Funzionalita_HW.ps1')
 
 
 $Ask = 'Do you want to run this as an Administrator?
