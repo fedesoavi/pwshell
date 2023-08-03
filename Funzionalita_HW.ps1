@@ -1,9 +1,5 @@
 ﻿<# TO DO:
 - check error handling
-- check osl socket traffic
-    Get-NetTCPConnection -owningprocess [PID]
-
-
 - redirect gp90 folder location
  #>
 
@@ -11,6 +7,8 @@
 #This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
 #$ErrorActionPreference = 'SilentlyContinue'
+
+Add-Type -AssemblyName System.Windows.Forms
 
 $Button = [System.Windows.MessageBoxButton]::YesNoCancel
 $ErrorIco = [System.Windows.MessageBoxImage]::Error
