@@ -524,8 +524,6 @@ Function main {
             if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
                 Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red
             }
-            $serviceOSLRDServer = (Get-ServiceStatus('OSLRDServer')).message
-            $serviceOverone = (Get-ServiceStatus('OverOne Monitoring Service')).message
 
             Write-Host ''
             Write-Host ' INFORMAZIONI:'
@@ -541,6 +539,8 @@ Function main {
         }
 
         Write-Host ' Servizi:'
+        $serviceOSLRDServer = (Get-ServiceStatus('OSLRDServer')).message
+        $serviceOverone = (Get-ServiceStatus('OverOne Monitoring Service')).message
         write-host @serviceOSLRDServer
         write-host @serviceOverone
 
