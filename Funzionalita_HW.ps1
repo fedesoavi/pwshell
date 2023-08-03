@@ -472,8 +472,8 @@ function Show-Menu {
         Write-Host "= [D] Copio dati di un dsn dentro init servizio"
         write-Host "= [E] Check TCP servizio o console OSL"
     }
-    Write-Host "======= Gestione servizi =============================="
     if ($global:isGP90Installed -or $global:isOverOneInstalled) {
+        Write-Host "======= Gestione servizi =============================="
         Write-Host "= [K] per arrestare tutti i servizi"
     }
     if ($global:isGP90Installed) {
