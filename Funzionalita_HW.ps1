@@ -163,7 +163,7 @@ function Get-ServiceStatus {
 
     if (-not $service) {
 
-        $serviceDetails.message = @{Object = "        $ServiceName is not installed on this computer."; ForegroundColor = Yellow }
+        $serviceDetails.message = @{Object = "        $ServiceName is not installed on this computer." }
     }
     else {
         $status = $service.Status
@@ -325,7 +325,7 @@ function Stop-AllService {
 }
 function Restart-Overone {
     #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
-    if ($isOverOneInstalled) {
+    if ($global:isOverOneInstalled) {
         Write-Host 'Killo Overone...' -ForegroundColor Green
         Stop-OverOneMonitoring
         Remove-Item -Path $LogOverOne -Force
@@ -463,24 +463,35 @@ function Show-Menu {
     Write-Host""
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================="
-    Write-Host "= [A] Forza Allineamento Init Servizio con init console"
-    Write-Host "= [I] per la lettura del Init di OSLRDServer"
-    Write-Host "= [v] Apri Configuratore Collegamenti"
-    Write-Host "= [L] Per modificare TCPListener All'interno del init"
-    Write-Host "= [T] ON/OFF segnali su Tabella"
-    Write-Host "= [D] Copio dati di un dsn dentro init servizio"
-    write-Host "= [E] Check TCP servizio o console OSL"
+    if ($global:isGP90Installed) {
+        Write-Host "= [A] Forza Allineamento Init Servizio con init console"
+        Write-Host "= [I] per la lettura del Init di OSLRDServer"
+        Write-Host "= [v] Apri Configuratore Collegamenti"
+        Write-Host "= [L] Per modificare TCPListener All'interno del init"
+        Write-Host "= [T] ON/OFF segnali su Tabella"
+        Write-Host "= [D] Copio dati di un dsn dentro init servizio"
+        write-Host "= [E] Check TCP servizio o console OSL"
+    }
     Write-Host "======= Gestione servizi =============================="
-    Write-Host "= [K] per arrestare tutti i servizi"
-    Write-Host "========== Servizio OslRdServer ======================="
-    Write-Host "=   [S] per avviare la modalita servizio OSlRdServer"
-    Write-Host "=   [F] per Fermare la modalita servizio OSlRdServer"
-    Write-Host "========== Console OslRdServer ========================"
-    Write-Host "=   [C] per avviare la modalita console"
-    Write-Host "=   [B] per fermare la modalita console"
-    Write-Host "========== Overone ===================================="
-    Write-Host "=   [O] per riavviare il servizio OverOneMonitoring e cancellare il LOG"
-    Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
+    if ($global:isGP90Installed -or $global:isOverOneInstalled) {
+        Write-Host "= [K] per arrestare tutti i servizi"
+    }
+    if ($global:isGP90Installed) {
+
+        Write-Host "========== Servizio OslRdServer ======================="
+        Write-Host "=   [S] per avviare la modalita servizio OSlRdServer"
+        Write-Host "=   [F] per Fermare la modalita servizio OSlRdServer"
+        Write-Host "========== Console OslRdServer ========================"
+        Write-Host "=   [C] per avviare la modalita console"
+        Write-Host "=   [B] per fermare la modalita console"
+    }
+    if ($global:isOverOneInstalled) {
+
+        Write-Host "========== Overone ===================================="
+        Write-Host "=   [O] per riavviare il servizio OverOneMonitoring e cancellare il LOG"
+        Write-Host "=   [U] per fermare il servizio OverOneMonitoring"
+
+    }
     Write-Host "======================================================================================================"
     Write-Host " [X] chiude script"
     Write-Host " [R] Reload script"
@@ -492,9 +503,9 @@ Function main {
     #check if Overone is installed
     $is32OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
     $is64OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
-    $isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
+    $global:isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
 
-    if ($isOverOneInstalled) {
+    if ($global:isOverOneInstalled) {
         $pathOverOneMonitor = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
         $LogOverOne = Join-Path -Path ($pathOverOneMonitor + '\Log') -childpath (Get-ChildItem ($pathOverOneMonitor + '\Log' ) -Filter overOneMonitoringService.log -Name)
     }
@@ -503,9 +514,9 @@ Function main {
     #check if GP90 is installed
     $is32GP90Installed = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
     $is64GP90Installed = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
-    $isGP90Installed = $is32GP90Installed -or $is64GP90Installed
+    $global:isGP90Installed = $is32GP90Installed -or $is64GP90Installed
 
-    if ($isGP90Installed) {
+    if ($global:isGP90Installed) {
         $servicepath = Get-AppPath('OSLRDServer')
         $pathGp90 = $servicepath.Substring(0, $servicepath.IndexOf("Programmi_Aggiuntivi"))
         $pathGp90OslRdServer = split-path -path ($servicepath)
@@ -520,7 +531,7 @@ Function main {
         Show-Title
 
         #controlli
-        if ($isGP90Installed) {
+        if ($global:isGP90Installed) {
             if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
                 Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red
             }
