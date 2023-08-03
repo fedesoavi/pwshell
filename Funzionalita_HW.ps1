@@ -163,7 +163,7 @@ function Get-ServiceStatus {
 
     if (-not $service) {
 
-        $serviceDetails.message = @{Object = "        $ServiceName is not installed on this computer." }
+        $serviceDetails.message = @{Object = "        $ServiceName is not installed on this computer."; ForegroundColor = Yellow }
     }
     else {
         $status = $service.Status
