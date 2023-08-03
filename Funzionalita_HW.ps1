@@ -7,36 +7,19 @@
 #This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
 #$ErrorActionPreference = 'SilentlyContinue'
-
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
-# Define the WinApiHelper class using Add-Type with here-string
 
-$Button = [System.Windows.MessageBoxButton]::YesNoCancel
-$ErrorIco = [System.Windows.MessageBoxImage]::Error
-$Ask = 'Do you want to run this as an Administrator?
-
-        Select "Yes" to Run as an Administrator
-
-        Select "No" to not run this as an Administrator
-
-        Select "Cancel" to stop the script.'
-
-If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
-    $Prompt = [System.Windows.MessageBox]::Show($Ask, "Run as an Administrator or not?", $Button, $ErrorIco)
-    Switch ($Prompt) {
-
-        Yes {
-            Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue."
-            Start-Process PowerShell.exe -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"{0}`"" -f $PSCommandPath) -Verb RunAs
-            Exit
-        }
-        No {
-            Break
-        }
+# Self-elevate the script if require
+if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
+    if ([int](Get-CimInstance -Class Win32_OperatingSystem | Select-Object -ExpandProperty BuildNumber) -ge 6000) {
+        $CommandLine = "-File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
+        Start-Process -FilePath PowerShell.exe -Verb Runas -ArgumentList $CommandLine
+        Exit
     }
 }
 
+# Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
 using System.Runtime.InteropServices;
 
