@@ -12,12 +12,12 @@ Add-Type -AssemblyName PresentationFramework
 
 $currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
 
- if (-not $currentPrincipal.IsInRole( [Security.Principal.WindowsBuiltInRole]::Administrator )) {
+if (-not $currentPrincipal.IsInRole( [Security.Principal.WindowsBuiltInRole]::Administrator )) {
  (get-host).UI.RawUI.Backgroundcolor = "DarkRed"
-        clear-host
-        write-host "Warning: PowerShell is not running as an Administrator.`n"
-        start-sleep 2
-    }
+    clear-host
+    write-host "Warning: PowerShell is not running as an Administrator.`n"
+    start-sleep 2
+}
 
 
 # Define the WinApiHelper class using Add-Type with here-string
@@ -157,24 +157,25 @@ function Get-ServiceStatus {
         [string]$ServiceName
     )
 
-    $serviceDetails =""|Select-Object -Property state,message
+    $serviceDetails = "" | Select-Object -Property state, message
 
     $service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
 
     if (-not $service) {
 
-        $serviceDetails.message= @{Object = "        $ServiceName is not installed on this computer." }
+        $serviceDetails.message = @{Object = "        $ServiceName is not installed on this computer." }
     }
     else {
         $status = $service.Status
 
-        $serviceDetails.state= $status -eq 'Running'
+        $serviceDetails.state = $status -eq 'Running'
 
-        $color= $(switch ($status) {
-            'Running' { 'Green' }
-            default { 'Red' }})
+        $color = $(switch ($status) {
+                'Running' { 'Green' }
+                default { 'Red' }
+            })
 
-        $serviceDetails.message = @{Object = "        $ServiceName service is $status" ; ForegroundColor = $color}
+        $serviceDetails.message = @{Object = "        $ServiceName service is $status" ; ForegroundColor = $color }
     }
     return $serviceDetails
 
@@ -427,25 +428,25 @@ function Open-ConfiguraCollegamenti {
 
 }
 function Get-TCPOsl {
-     $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
-     if  ((Get-ServiceStatus('OSLRDServer')).state)
-     {
-         write-Host 'service running'
-         $name='OSLRDServerService'
-     }elseif ($appConsole)
-     {
-         Write-Host 'console runnning'
-         $name='OSLRDServer'
-     }else {
-         Write-Host 'Console o servizio non attivo' -ForegroundColor Yellow
-         break
-     }
+    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+    if ((Get-ServiceStatus('OSLRDServer')).state) {
+        write-Host 'service running'
+        $name = 'OSLRDServerService'
+    }
+    elseif ($appConsole) {
+        Write-Host 'console runnning'
+        $name = 'OSLRDServer'
+    }
+    else {
+        Write-Host 'Console o servizio non attivo' -ForegroundColor Yellow
+        break
+    }
 
-     $ID_OslRdServer = Get-Process $name | Select-Object Id
+    $ID_OslRdServer = Get-Process $name | Select-Object Id
 
-     Get-NetTCPConnection -owningprocess $ID_OslRdServer.Id
-     Read-Host -Prompt "Press any key to continue..."
-   }
+    Get-NetTCPConnection -owningprocess $ID_OslRdServer.Id
+    Read-Host -Prompt "Press any key to continue..."
+}
 function Show-Title {
     Write-Host '
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████
@@ -519,24 +520,26 @@ Function main {
         Show-Title
 
         #controlli
-        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)-and !$isGP90Installed){
-            Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red
+        if ($isGP90Installed) {
+            if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
+                Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red
+            }
+            $serviceOSLRDServer = (Get-ServiceStatus('OSLRDServer')).message
+            $serviceOverone = (Get-ServiceStatus('OverOne Monitoring Service')).message
+
+            Write-Host ''
+            Write-Host ' INFORMAZIONI:'
+
+            if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }
+            if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
+            Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
+                '' { write-host '        Non sono presenti nodi' -ForegroundColor green }
+                default { Write-Host '        Sono presenti nodi, questo è il nodo:', $nodo -ForegroundColor Yellow }
+            }
+            Write-Host ' Indirizzi IP:'
+            Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
         }
-        $serviceOSLRDServer = (Get-ServiceStatus('OSLRDServer')).message
-        $serviceOverone = (Get-ServiceStatus('OverOne Monitoring Service')).message
 
-
-        Write-Host ''
-        Write-Host ' INFORMAZIONI:'
-
-        if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }
-        if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
-        Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
-            '' { write-host '        Non sono presenti nodi' -ForegroundColor green }
-            default { Write-Host '        Sono presenti nodi, questo è il nodo:', $nodo -ForegroundColor Yellow }
-        }
-        Write-Host ' Indirizzi IP:'
-        Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
         Write-Host ' Servizi:'
         write-host @serviceOSLRDServer
         write-host @serviceOverone
@@ -611,9 +614,9 @@ Function main {
                 Clear-Host
                 Exit
             }
-            E{
+            E {
                 #[E] Check TCP servizio o console OSL
-               Get-TCPOsl
+                Get-TCPOsl
             }
             R {
                 #[R] Reload script
