@@ -519,7 +519,7 @@ Function main {
         Show-Title
 
         #controlli
-        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
+        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)-and !$isGP90Installed){
             Write-Host 'CONSOLE INI NOT ALIGNED' -ForegroundColor Red
         }
         $serviceOSLRDServer = (Get-ServiceStatus('OSLRDServer')).message
