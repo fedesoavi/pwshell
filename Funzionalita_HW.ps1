@@ -27,9 +27,11 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
         Yes {
             Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue."
             Start-Process PowerShell.exe -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"{0}`"" -f $PSCommandPath) -Verb RunAs
+            $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
             Exit
         }
         No {
+            $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
             Break
         }
     }
