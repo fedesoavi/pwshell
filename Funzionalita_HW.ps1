@@ -10,11 +10,15 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
 
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Output "Winutil needs to be run as Administrator. Attempting to relaunch."
-    Start-Process -FilePath powershell.exe -ArgumentList "Invoke-Expression (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/fedesoavi/pwshell/main/Funzionalita_HW.ps1')"
-    break
-}
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
+
+ if (-not $currentPrincipal.IsInRole( [Security.Principal.WindowsBuiltInRole]::Administrator )) {
+ (get-host).UI.RawUI.Backgroundcolor = "DarkRed"
+        clear-host
+        write-host "Warning: PowerShell is not running as an Administrator.`n"
+        start-sleep 2
+    }
+
 
 # Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
