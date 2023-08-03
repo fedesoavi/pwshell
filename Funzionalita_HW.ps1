@@ -6,7 +6,7 @@
 
 #This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
-#$ErrorActionPreference = 'SilentlyContinue'
+$ErrorActionPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
 
