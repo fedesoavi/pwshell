@@ -10,6 +10,20 @@
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
+# Define the WinApiHelper class using Add-Type with here-string
+Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+
+namespace net.same2u.WinApiHelper {
+    public static class IniFile {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
+        public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
+    }
+}
+"@
 
 $Button = [System.Windows.MessageBoxButton]::YesNoCancel
 $ErrorIco = [System.Windows.MessageBoxImage]::Error
@@ -35,25 +49,6 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
         }
     }
 }
-
-$key = Read-Host 'Digitare la lettera del comando e premere ENTER'
-
-
-
-# Define the WinApiHelper class using Add-Type with here-string
-Add-Type -TypeDefinition @"
-using System.Runtime.InteropServices;
-
-namespace net.same2u.WinApiHelper {
-    public static class IniFile {
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-        // Note the need to use `[Out] byte[]` instead of `System.Text.StringBuilder` in order to support strings with embedded NUL chars.
-        public static extern uint GetPrivateProfileString(string lpAppName, string lpKeyName, string lpDefault, [Out] byte[] lpBuffer, uint nSize, string lpFileName);
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-        public static extern bool WritePrivateProfileString(string lpAppName, string lpKeyName, string lpString, string lpFileName);
-    }
-}
-"@
 
 Clear-Host
 
