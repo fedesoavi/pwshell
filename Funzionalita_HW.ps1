@@ -35,6 +35,10 @@ If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     }
 }
 
+$key = Read-Host 'Digitare la lettera del comando e premere ENTER'
+
+
+
 # Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
 using System.Runtime.InteropServices;
