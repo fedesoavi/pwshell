@@ -404,6 +404,26 @@ function show-FirewallStatus {
         Write-Host ' Firewall Active'  -ForegroundColor Yellow
     }
 }
+function Open-Firewall {
+    $ports = @(1433, 5888)
+
+    foreach ($port in $ports) {
+        $ruleDisplayNameInbound = "OSL Allow inbound traffic on port $port"
+        $ruleInbound = Get-NetFirewallRule -DisplayName $ruleDisplayNameInbound -ErrorAction SilentlyContinue
+
+        if ($null -eq $ruleInbound) {
+            New-NetFirewallRule -DisplayName $ruleDisplayNameInbound -Group "OSL" -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow
+        }
+
+        $ruleDisplayNameOutbound = "OSL Allow outbound traffic on port $port"
+        $ruleOutbound = Get-NetFirewallRule -DisplayName $ruleDisplayNameOutbound -ErrorAction SilentlyContinue
+
+        if ($null -eq $ruleOutbound) {
+            New-NetFirewallRule -DisplayName $ruleDisplayNameOutbound -Group "OSL" -Direction Outbound -Protocol TCP -LocalPort $port -Action Allow
+        }
+    }
+}
+
 function Open-ConfiguraCollegamenti {
 
     #[V] Apri Configuratore Collegamenti
@@ -463,6 +483,8 @@ function Show-Menu {
     Write-Host""
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================="
+    Write-Host "= [] Open osl firewall"
+
     if ($global:isGP90Installed) {
         Write-Host "= [A] Forza Allineamento Init Servizio con init console"
         Write-Host "= [I] per la lettura del Init di OSLRDServer"
@@ -561,7 +583,7 @@ Function main {
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
 
-        #opzioni [A I L T D S C K O X F B R V E]
+        #opzioni [A I L T D S C K O X F B R V E J]
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
@@ -628,6 +650,10 @@ Function main {
             E {
                 #[E] Check TCP servizio o console OSL
                 Get-TCPOsl
+            }
+            J{
+                #[J] Open firewall
+                Open-Firewall
             }
             R {
                 #[R] Reload script
