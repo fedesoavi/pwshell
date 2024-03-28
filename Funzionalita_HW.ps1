@@ -2,7 +2,6 @@
 - check error handling
 - redirect gp90 folder location
 - enable debug log
-- download notepad++
 - open gp90 folder
  #>
 
@@ -471,6 +470,35 @@ function Get-TCPOsl {
     Get-NetTCPConnection -owningprocess $ID_OslRdServer.Id
     Read-Host -Prompt "Press any key to continue..."
 }
+function Get-notepad++ {
+
+    $FileUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6.4/npp.8.6.4.Installer.x64.exe"
+    $Destination = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+
+    $Destination = join-Path -path $Destination -childpath 'npp.8.6.4.Installer.x64.exe'
+
+    $bitsJobObj = Start-BitsTransfer $FileUri -Destination $Destination
+
+    switch ($bitsJobObj.JobState) {
+
+        'Transferred' {
+            Complete-BitsTransfer -BitsJob $bitsJobObj
+            break
+        }
+
+        'Error' {
+            throw 'Error downloading'
+        }
+    }
+
+    $exeArgs = '/S'
+
+    Start-Process -Wait $Destination -ArgumentList $exeArgs
+
+    write-host 'Installato Notepad++'
+}
+
+
 function Show-Title {
     Write-Host '
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████
@@ -488,6 +516,8 @@ function Show-Menu {
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================="
     Write-Host "= [J] Open osl firewall"
+    Write-Host "= [+] install Notepad++"
+
 
     if ($global:isGP90Installed) {
         Write-Host "= [A] Forza Allineamento Init Servizio con init console"
@@ -585,11 +615,13 @@ Function main {
 
         show-FirewallStatus
 
+        Write-Host 'Password: 1234-i4qfis-6in7'
+
         Show-Menu
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
 
-        #opzioni [A I L T D S C K O X F B R V E J]
+        #opzioni [A I L T D S C K O X F B R V E J +]
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
@@ -648,6 +680,9 @@ Function main {
                 Stop-OverOneMonitoring
             }
             #######################################
+            +{
+                Get-notepad++
+            }
             X {
                 #[X] chiude script
                 Clear-Host
@@ -657,7 +692,7 @@ Function main {
                 #[E] Check TCP servizio o console OSL
                 Get-TCPOsl
             }
-            J{
+            J {
                 #[J] Open firewall
                 Open-Firewall
             }
