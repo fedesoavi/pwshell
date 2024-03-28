@@ -1,6 +1,9 @@
 ﻿<# TO DO:
 - check error handling
 - redirect gp90 folder location
+- enable debug log
+- download notepad++
+- open gp90 folder
  #>
 
 
@@ -403,11 +406,12 @@ function show-FirewallStatus {
         Write-Host ' Firewall:'
         Write-Host ' Firewall Active'  -ForegroundColor Yellow
     }
+
 }
 function Open-Firewall {
-    $ports = @(1433, 5888)
 
-    foreach ($port in $ports) {
+
+    foreach ($port in $global:ports) {
         $ruleDisplayNameInbound = "OSL Allow inbound traffic on port $port"
         $ruleInbound = Get-NetFirewallRule -DisplayName $ruleDisplayNameInbound -ErrorAction SilentlyContinue
 
@@ -483,7 +487,7 @@ function Show-Menu {
     Write-Host""
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================="
-    Write-Host "= [] Open osl firewall"
+    Write-Host "= [J] Open osl firewall"
 
     if ($global:isGP90Installed) {
         Write-Host "= [A] Forza Allineamento Init Servizio con init console"
@@ -520,6 +524,8 @@ function Show-Menu {
     Write-Host""
 }
 Function main {
+
+    $global:ports = @(1433, 5888)
 
     #OverOne
     #check if Overone is installed
