@@ -1,7 +1,6 @@
 ﻿<# TO DO:
 - check error handling
 - redirect gp90 folder location
-- enable debug log
 - open gp90 folder
  #>
 
@@ -358,7 +357,7 @@ function Switch-SegnaliSuTabella {
     $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico'
     $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
 
-    if (($usoCollegamentoUnico -eq -1) -or ($segnaliSutabella -eq -1)) {
+    if (($usoCollegamentoUnico -ne 0) -or ($segnaliSutabella -ne 0)) {
         Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' 0
         Set-IniValue $InitService 'Config' 'segnaliSuTabella' 0
         Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
@@ -398,7 +397,7 @@ function Copy-DsnToInit {
         Write-Host 'cancelled'
     }
 }
-function show-FirewallStatus {
+function Show-FirewallStatus {
 
     $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
     if ($enabledFirewalls) {
@@ -498,6 +497,21 @@ function Get-notepad++ {
     write-host 'Installato Notepad++'
 }
 
+function Switch-DebugLog {
+
+    $debugLog = Get-IniValue $InitService 'Config' 'debuglog'
+    if ($debugLog -ne 0)  {
+        Set-IniValue $InitService 'Config' 'debuglog' '0'
+        Write-Host "Disabilitato DebugLog" -ForegroundColor RED
+    }
+    else {
+        Set-IniValue $InitService 'Config' 'debuglog' '-1'
+        Write-Host "Abilitato DebugLog" -ForegroundColor green
+    }
+}
+function Open-GP90 {
+    Start-Process $pathGp90
+}
 
 function Show-Title {
     Write-Host '
@@ -517,6 +531,8 @@ function Show-Menu {
     write-host "======================================================================================================="
     Write-Host "= [J] Open osl firewall"
     Write-Host "= [+] install Notepad++"
+    Write-Host '= [G] ON/OFF DebugLog'
+    Write-Host '= [9] Open Gp90 folder'
 
 
     if ($global:isGP90Installed) {
@@ -597,8 +613,8 @@ Function main {
             Write-Host ''
             Write-Host ' INFORMAZIONI:'
 
-            if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -eq -1) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }
-            if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -eq -1) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
+            if ((Get-IniValue $InitService 'Config' 'segnaliSuTabella') -ne 0) { Write-Host '        Segnali su Tabella Attivo' -ForegroundColor green } else { Write-Host '        Segnali su Tabella disattivo' -ForegroundColor Red }
+            if ((Get-IniValue $InitService 'Config' 'usoCollegamentoUnico') -ne 0) { Write-Host '        Collegamento Unico Attivo' -ForegroundColor green } else { Write-Host '        Collegamento Unico disattivo' -ForegroundColor Red }
             Switch ($nodo = Get-IniValue $InitService 'Config' 'nodo') {
                 '' { write-host '        Non sono presenti nodi' -ForegroundColor green }
                 default { Write-Host '        Sono presenti nodi, questo è il nodo:', $nodo -ForegroundColor Yellow }
@@ -613,15 +629,16 @@ Function main {
         write-host @serviceOSLRDServer
         write-host @serviceOverone
 
-        show-FirewallStatus
+        Show-FirewallStatus
 
-        Write-Host 'Password: 1234-i4qfis-6in7'
+        Write-Host ' Password: 1234-i4qfis-6in7'
+        if ((Get-IniValue $InitService 'Config' 'debuglog') -ne 0) {Write-Host ' Debug log attivo'} else {Write-Host ' Debug log disattivo'}
 
         Show-Menu
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
 
-        #opzioni [A I L T D S C K O X F B R V E J +]
+        #opzioni [A I L T D S C K O X F B R V E J + G 9]
         Switch ($key) {
             A {
                 #[A] Forza Allineamento Init Servizio con init console
@@ -681,7 +698,16 @@ Function main {
             }
             #######################################
             +{
+                #[+] installa notepad++
                 Get-notepad++
+            }
+            G{
+                #[G] ON/OFF Debug
+                Switch-DebugLog
+            }
+            9{
+                #[9] Open GP90
+                Open-GP90
             }
             X {
                 #[X] chiude script
