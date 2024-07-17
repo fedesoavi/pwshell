@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\f.soavi\\OneDrive - OSL srl\\Documenti\\03_SOFTWARE\\POWERSHELL\\pwshell\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\f.soavi\\OneDrive - OSL srl\\Documenti\\03_SOFTWARE\\POWERSHELL\\pwshell\\Funzionalita_HW.ps1||{53EE1FC9-2478-4DD6-9FE2-6B4E499EF22B}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Funzionalita_HW.ps1||{53EE1FC9-2478-4DD6-9FE2-6B4E499EF22B}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Funzionalita_HW.ps1",
+              "DocumentMoniker": "C:\\Users\\f.soavi\\OneDrive - OSL srl\\Documenti\\03_SOFTWARE\\POWERSHELL\\pwshell\\Funzionalita_HW.ps1",
+              "RelativeDocumentMoniker": "Funzionalita_HW.ps1",
+              "ToolTip": "C:\\Users\\f.soavi\\OneDrive - OSL srl\\Documenti\\03_SOFTWARE\\POWERSHELL\\pwshell\\Funzionalita_HW.ps1",
+              "RelativeToolTip": "Funzionalita_HW.ps1",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAACgAAAA9AAAA",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAKISURBVDhPlVLdS1RBFP/dux/JrppKUVoISrRSbVGEBq4Z5ZPRk39A9FYPUQ89CUEv2WOC\u002BFRB9QcUPoQkBItUkAa\u002BpNZ\u002BGO2u3nbdVe/evevuzsydZmY/shehM/fMuefMnN/8zuFoEBIOh7m0\u002BwnnnPX39z/0\u002B/1PaiEVVFYCUEI4pYQzRpU6DlMqY9IuLCzwubk5llhP3lFJNdHlJoHkUl8NtG51XV0BIQShUEj/vrw6GY/Hb6qgEHXqOM6\u002BIFJs28b8/Ly86xUAL2vhvwzEVgXZ8984EzIycg1ng0H0BQLKr4tqoqiND18egqYJV\u002BjMu/fo7OpSvk0YvG4dLvFUhXI44j7hGtKGwW\u002BN3agW2ChB6PqGAV9bB1oCQUxveIHOHkwl3VjxdyN3vA/rh0/A1X0ShTJRjysAxphkrQAi0Rjgb8VyWUfcpoDLg/uXevDoQwTPI9t4Y5QQyxZgJBOkAbCXQc4uw\u002BQexPJlME3H7dkVdDV78HbsHJZWk1jL5pHezCG9kdr8B0BSkCzyxTLSjgcRqwKnrRWZHRuO7sLH1DZ2ShTRtAlqbsHKGJ8bAJTSBoMCZfhB3JiJb2EzmkDs7jBGX33Bs8VfOAgGZzsPapnIb\u002BVmGwD1ZEnhN/Xia7YEtruLIy1NuPJ6UXV\u002B6voZPBjshVe0Lp/NwNfanpK5brmZpinnRwEcE0n3Ojk8onkmaUGlVEKxQhBeXILf58Pj0258\u002B2TgQPuhhExRDCzLqvZArN5mDReabARdBYSaihjylzCgZREs/MRoB8HRbAzcyiGTSkRlrmJQLBZVCZpYVwcHlJUDVZ0r6dV9DafOX8Sa8RQvpieZzFXDMD4\u002BXp3X/5CJiQmRC/wBUOeA8MehIQsAAAAASUVORK5CYII=",
+              "WhenOpened": "2024-07-17T14:19:01.566Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

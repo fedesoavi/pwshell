@@ -1,4 +1,4 @@
-﻿
+
 #This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
 #$ErrorActionPreference = 'SilentlyContinue'
@@ -30,6 +30,10 @@ namespace net.same2u.WinApiHelper {
 }
 "@
 Clear-Host
+
+
+
+
 
 Function Get-IniValue {
     <#
@@ -395,14 +399,11 @@ function Show-FirewallStatus {
 
     $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
     if ($enabledFirewalls) {
-        Write-Host ' Firewall:'
         Write-Host ' Firewall Active'  -ForegroundColor Yellow
     }
 
 }
 function Open-Firewall {
-
-
     foreach ($port in $global:ports) {
         $ruleDisplayNameInbound = "OSL Allow inbound traffic on port $port"
         $ruleInbound = Get-NetFirewallRule -DisplayName $ruleDisplayNameInbound -ErrorAction SilentlyContinue
@@ -522,11 +523,13 @@ function Show-Menu {
     )
     Write-Host""
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
-    write-host "======================================================================================================="
-    Write-Host "= [J] Open osl firewall"
+    write-host "======================================================================================================"
+    # Write-Host "= [J] Open osl firewall"
     Write-Host "= [+] install Notepad++"
-    Write-Host '= [G] ON/OFF DebugLog'
-    Write-Host '= [9] Open Gp90 folder'
+    if ($global:isGP90Installed) {
+        Write-Host '= [G] ON/OFF DebugLog'
+        Write-Host '= [9] Open Gp90 folder'
+    }
 
 
     if ($global:isGP90Installed) {
@@ -563,7 +566,7 @@ function Show-Menu {
     Write-Host " [R] Reload script"
     Write-Host""
 }
-Function main {
+Function test {
 
     $global:ports = @(1433, 5888)
 
@@ -611,6 +614,7 @@ Function main {
             }
             Write-Host ' Indirizzi IP:'
             Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
+            if ((Get-IniValue $InitService 'Config' 'debuglog') -ne 0) {Write-Host ' Debug log attivo'} else {Write-Host ' Debug log disattivo'}
         }
 
         Write-Host ' Servizi:'
@@ -622,8 +626,7 @@ Function main {
         Show-FirewallStatus
 
         Write-Host ' Password: 1234-i4qfis-6in7'
-        if ((Get-IniValue $InitService 'Config' 'debuglog') -ne 0) {Write-Host ' Debug log attivo'} else {Write-Host ' Debug log disattivo'}
-
+        
         Show-Menu
         $key = Read-Host 'Digitare la lettera del comando e premere ENTER'
         Write-Host''
@@ -708,10 +711,10 @@ Function main {
                 #[E] Check TCP servizio o console OSL
                 Get-TCPOsl
             }
-            J {
+            <# J {
                 #[J] Open firewall
                 Open-Firewall
-            }
+            } #>
             R {
                 #[R] Reload script
                 Clear-Host
@@ -725,4 +728,7 @@ Function main {
 
 }
 
-main
+
+
+test
+
