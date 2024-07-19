@@ -1,14 +1,15 @@
+#$ErrorActionPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
 
-# Self-elevate the script if required
-if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
-    if ([int](Get-CimInstance -Class Win32_OperatingSystem | Select-Object -ExpandProperty BuildNumber) -ge 6000) {
-     $CommandLine = "-File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
-     Start-Process -FilePath PowerShell.exe -Verb Runas -ArgumentList $CommandLine
-     Exit
-    }
-   }
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
+
+if (-not $currentPrincipal.IsInRole( [Security.Principal.WindowsBuiltInRole]::Administrator )) {
+ (get-host).UI.RawUI.Backgroundcolor = "DarkRed"
+    clear-host
+    write-host "Warning: PowerShell is not running as an Administrator.`n"
+    start-sleep 2
+}
 
 # Define the WinApiHelper class using Add-Type with here-string
 Add-Type -TypeDefinition @"
