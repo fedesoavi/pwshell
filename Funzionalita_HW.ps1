@@ -1,3 +1,9 @@
+<# TO DO:
+- check error handling
+- redirect gp90 folder location
+- open gp90 folder
+ #>
+
 
 #This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
 
@@ -566,13 +572,15 @@ function Show-Menu {
     Write-Host " [R] Reload script"
     Write-Host""
 }
-Function test {
+Function main {
 
     $global:ports = @(1433, 5888)
 
     #OverOne
     #check if Overone is installed
-    $global:isOverOneInstalled = $null -ne (Get-CimInstance -ClassName win32_service  | where-object{$_.Name -like 'OverOneMonitoringWindowsService'})
+    $is32OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
+    $is64OverOneInstalled = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.DisplayName -eq "OverOne Desktop" })
+    $global:isOverOneInstalled = $is32OverOneInstalled -or $is64OverOneInstalled
 
     if ($global:isOverOneInstalled) {
         $pathOverOneMonitor = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
@@ -581,7 +589,9 @@ Function test {
 
     #GP90
     #check if GP90 is installed
-    $global:isGP90Installed = $null -ne (Get-CimInstance -ClassName win32_service  | where-object{$_.Name -like 'OSLRDServer'})
+    $is32GP90Installed = $null -ne (Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
+    $is64GP90Installed = $null -ne (Get-ItemProperty HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.Publisher -eq "O.S.L." })
+    $global:isGP90Installed = $is32GP90Installed -or $is64GP90Installed
 
     if ($global:isGP90Installed) {
         $servicepath = Get-AppPath('OSLRDServer')
@@ -730,5 +740,5 @@ Function test {
 
 
 
-test
+main
 
