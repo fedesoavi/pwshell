@@ -336,105 +336,7 @@ function Restart-Overone {
 }
 #endregion
 
-
-function Get-AppPath {
-    param (
-        [Parameter(Mandatory = $true)]
-        [string]$serviceName
-    )
-
-    $service = Get-CimInstance -ClassName win32_service -Filter "Name='$serviceName'"
-    if (!$service) {
-        Write-Error "Service $serviceName not found"
-        return
-    }
-
-    $serviceBinaryPath = if ($service.pathname -like '"*') {
-        ($service.pathname -split '"')[1] # get path without quotes
-    }
-    else {
-        (-split $service.pathname)[0] # get 1st token
-    }
-
-    return $serviceBinaryPath
-}
-
-
-
-
-
-
-
-
-function Show-FirewallStatus {
-
-    $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
-    if ($enabledFirewalls) {
-        Write-Host ' Firewall Active'  -ForegroundColor Yellow
-    }
-
-}
-function Open-Firewall {
-    foreach ($port in $global:ports) {
-        $ruleDisplayNameInbound = "OSL Allow inbound traffic on port $port"
-        $ruleInbound = Get-NetFirewallRule -DisplayName $ruleDisplayNameInbound -ErrorAction SilentlyContinue
-
-        if ($null -eq $ruleInbound) {
-            New-NetFirewallRule -DisplayName $ruleDisplayNameInbound -Group "OSL" -Direction Inbound -Protocol TCP -LocalPort $port -Action Allow
-        }
-
-        $ruleDisplayNameOutbound = "OSL Allow outbound traffic on port $port"
-        $ruleOutbound = Get-NetFirewallRule -DisplayName $ruleDisplayNameOutbound -ErrorAction SilentlyContinue
-
-        if ($null -eq $ruleOutbound) {
-            New-NetFirewallRule -DisplayName $ruleDisplayNameOutbound -Group "OSL" -Direction Outbound -Protocol TCP -LocalPort $port -Action Allow
-        }
-    }
-}
-
-function Open-ConfiguraCollegamenti {
-
-    #[V] Apri Configuratore Collegamenti
-
-    $ps = Start-Process -PassThru -FilePath (join-Path -path $pathGp90OslRdServer -childpath '\ConfiguratoreCollegamenti\ConfiguratoreCollegamenti.exe') -WindowStyle Normal
-
-    $wshell = New-Object -ComObject wscript.shell
-
-    # Wait until activating the target process succeeds.
-    # Note: You may want to implement a timeout here.
-    while (-not $wshell.AppActivate($ps.Id)) {
-        Start-Sleep -MilliSeconds 200
-    }
-
-    $wshell.SendKeys('osl')
-    Sleep 0.5
-    $wshell.SendKeys('{TAB}')
-    Sleep 0.5
-    $wshell.SendKeys('Osl5888')
-    sleep 0.5
-    $wshell.SendKeys('{ENTER}')
-
-}
-function Get-TCPOsl {
-    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
-    if ((Get-ServiceStatus('OSLRDServer')).state) {
-        write-Host 'service running'
-        $name = 'OSLRDServerService'
-    }
-    elseif ($appConsole) {
-        Write-Host 'console runnning'
-        $name = 'OSLRDServer'
-    }
-    else {
-        Write-Host 'Console o servizio non attivo' -ForegroundColor Yellow
-        break
-    }
-
-    $ID_OslRdServer = Get-Process $name | Select-Object Id
-
-    Get-NetTCPConnection -owningprocess $ID_OslRdServer.Id
-    Read-Host -Prompt "Press any key to continue..."
-}
+#region application
 function Get-notepad++ {
 
     $FileUri = "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.6.4/npp.8.6.4.Installer.x64.exe"
@@ -462,7 +364,55 @@ function Get-notepad++ {
 
     write-host 'Installato Notepad++'
 }
+function Get-Tcplistener {
 
+    $FileUri = "https://live.sysinternals.com/Tcpview.exe"
+    $Destination = (New-Object -ComObject Shell.Application).NameSpace('shell:Downloads').Self.Path
+
+    $Destination = join-Path -path $Destination -childpath 'Tcpview.exe'
+
+    $bitsJobObj = Start-BitsTransfer $FileUri -Destination $Destination
+
+    switch ($bitsJobObj.JobState) {
+
+        'Transferred' {
+            Complete-BitsTransfer -BitsJob $bitsJobObj
+            break
+        }
+
+        'Error' {
+            throw 'Error downloading'
+        }
+    }
+    write-host 'lancio TCPlistener'
+    Start-Process  $Destination    
+}
+function Open-ConfiguraCollegamenti {
+
+    #[V] Apri Configuratore Collegamenti
+
+    $ps = Start-Process -PassThru -FilePath (join-Path -path $pathGp90OslRdServer -childpath '\ConfiguratoreCollegamenti\ConfiguratoreCollegamenti.exe') -WindowStyle Normal
+
+    $wshell = New-Object -ComObject wscript.shell
+
+    # Wait until activating the target process succeeds.
+    # Note: You may want to implement a timeout here.
+    while (-not $wshell.AppActivate($ps.Id)) {
+        Start-Sleep -MilliSeconds 200
+    }
+
+    $wshell.SendKeys('osl')
+    start-sleep 0.5
+    $wshell.SendKeys('{TAB}')
+    start-sleep 0.5
+    $wshell.SendKeys('Osl5888')
+    start-sleep 0.5
+    $wshell.SendKeys('{ENTER}')
+
+}
+#endregion
+
+#region Gp90
 function Switch-DebugLog {
 
     $debugLog = Get-IniValue $InitService 'Config' 'debuglog'
@@ -478,6 +428,38 @@ function Switch-DebugLog {
 function Open-GP90 {
     Start-Process $pathGp90
 }
+#endregion
+
+#region Utilities
+function Get-AppPath {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$serviceName
+    )
+
+    $service = Get-CimInstance -ClassName win32_service -Filter "Name='$serviceName'"
+    if (!$service) {
+        Write-Error "Service $serviceName not found"
+        return
+    }
+
+    $serviceBinaryPath = if ($service.pathname -like '"*') {
+        ($service.pathname -split '"')[1] # get path without quotes
+    }
+    else {
+        (-split $service.pathname)[0] # get 1st token
+    }
+
+    return $serviceBinaryPath
+}
+function Show-FirewallStatus {
+    $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
+    if ($enabledFirewalls) {
+        Write-Host ' Firewall Active'  -ForegroundColor Yellow
+    }
+}
+#endregion
+
 #region GUI
 function Show-Title {
     Write-Host '
@@ -493,7 +475,8 @@ function Show-Menu {
         [string]$Title = 'Osl Debugger'
     )
     Write-Host""
-    Write-Host "[+] install Notepad++"
+    Write-Host "[+] Install Notepad++"
+    Write-Host "[T] Launch TCPListener"
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================"
     if ($global:isGP90Installed) {
@@ -502,10 +485,6 @@ function Show-Menu {
         Write-Host "= [A] Forza Allineamento Init Servizio con init console"
         Write-Host "= [I] per la lettura del Init di OSLRDServer"
         Write-Host "= [v] Apri Configuratore Collegamenti"
-        Write-Host "= [L] Per modificare TCPListener All'interno del init"
-        Write-Host "= [T] ON/OFF segnali su Tabella"
-        Write-Host "= [D] Copio dati di un dsn dentro init servizio"
-        write-Host "= [E] Check TCP servizio o console OSL"
     }
     if ($global:isGP90Installed -or $global:isOverOneInstalled) {
         Write-Host "======= Gestione servizi =============================="
@@ -586,10 +565,29 @@ function Switch-SegnaliSuTabella {
         Write-Host "Abilitati segnali su tabella" -ForegroundColor green
     }
 }
+function Get-TCPOsl {
+    # non credo funzioni
+    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+    if ((Get-ServiceStatus('OSLRDServer')).state) {
+        write-Host 'service running'
+        $name = 'OSLRDServerService'
+    }
+    elseif ($appConsole) {
+        Write-Host 'console runnning'
+        $name = 'OSLRDServer'
+    }
+    else {
+        Write-Host 'Console o servizio non attivo' -ForegroundColor Yellow
+        break
+    }
+    
+    $ID_OslRdServer = Get-Process $name | Select-Object Id
+    #va in errore
+    Get-NetTCPConnection -owningprocess $ID_OslRdServer.Id
+    Read-Host -Prompt "Press any key to continue..."
+}
 #endregion
 Function main {
-
-    $global:ports = @(1433, 5888)
 
     #OverOne
     #check if Overone is installed
@@ -662,18 +660,18 @@ Function main {
                 #[I] per la lettura del Init di OSLRDServer
                 Open-Init
             }
-            L {
+            <# L {
                 #[L] Per modificare TCPListener All'interno del init
                 Edit-Tcplistener
-            }
+            } #>
             T {
-                #[T] ON/OFF segnali su Tabella
-                Switch-SegnaliSuTabella
-            }
-            D {
+                #[T] lancio il tcplistener
+                Get-Tcplistener
+            } 
+            <# D {
                 #[D] Copio dati di un dsn dentro init servizio
                 Copy-DsnToInit
-            }
+            } #>
             V {
                 #[V] Apri Configuratore Collegamenti
                 Open-ConfiguraCollegamenti
@@ -728,10 +726,10 @@ Function main {
                 Clear-Host
                 Exit
             }
-            E {
+           <#  E {
                 #[E] Check TCP servizio o console OSL
                 Get-TCPOsl
-            }
+            } #>
             <# J {
                 #[J] Open firewall
                 Open-Firewall
