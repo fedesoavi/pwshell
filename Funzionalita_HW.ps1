@@ -26,7 +26,7 @@ namespace net.same2u.WinApiHelper {
 }
 "@
 Clear-Host
-
+#region Init Manipulation
 Function Get-IniValue {
     <#
     .SYNOPSIS
@@ -141,6 +141,34 @@ Function Set-IniValue {
     if (-not $ok) { Throw "Updating INI file failed: $fullPath" }
 
 }
+Function Sync-InitConsole {
+    #check init from service to appconsole if are equal
+    if (Test-Path -Path $InitConsole -PathType Leaf) {
+        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
+            Write-Host 'Console ini not aligned...'
+            Copy-Item $InitService -Destination $InitConsole
+            Write-Host 'Copied from Service...Completed'
+            Start-Sleep 3
+            Clear-Host
+        }
+    }
+    else {
+        Write-Host 'Console ini missing...'
+        Copy-Item $InitService -Destination $InitConsole
+        Write-Host 'Copied from Service...Completed'
+        Start-Sleep 3
+        Clear-Host
+    }
+}
+function Open-Init {
+    #[I] per la lettura del Init di OSLRDServer
+    Write-Host 'Apro Init...' -ForegroundColor Green
+    Start-Process notepad.exe $InitService -NoNewWindow -Wait
+    write-host 'Controllo modifiche...' -ForegroundColor Green
+}
+#endregion
+
+#region Service Manipulation
 function Get-ServiceStatus {
     [CmdletBinding()]
     param(
@@ -171,64 +199,114 @@ function Get-ServiceStatus {
     return $serviceDetails
 
 }
-function Stop-RdConsole {
-    [CmdletBinding()]
-    param()
-    # Get the process object for OSLRDServer
-    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+function Stop-AllService {
+    #[K] per arrestare il servizio o console e OverOne
+    Write-Host 'Killo i servizi...' -ForegroundColor Green
+    Stop-RdConsole
+    Stop-RdService
+    Stop-OverOneMonitoring
+    Write-Host "Servizi FERMI"
+}
+#endregion
 
-    if ($appConsole) {
-        Write-Host 'Trying to gracefully close the AppConsole...'
-        # Try to close the main window gracefully first
-        $appConsole.CloseMainWindow()
+#region OslRdServer
+    #
+    #
+    #
+    #
+    #
+    #region Service
+    function Start-OslRdServerService {
+        # [S] per avviare la modalita servizio
+        Write-Host 'Avvio Servizio OslRdServer...' -ForegroundColor Green
+        Stop-RdConsole
+        Restart-Service  OSLRDServer
+        Get-Service OSLRDServer
+    }
+    function Stop-OslRdServerService {
+        # [F] per avviare la modalita servizio
+        Write-Host 'Fermo Servizio OslRdServer...' -ForegroundColor Green
+        Stop-RdConsole
+        Stop-Service  OSLRDServer
+        Get-Service OSLRDServer
+    }
+    Function Stop-RdService {
+        param()
+    
+        # Get RdService service
+        $rdService = Get-Service -Name OSLRDServer -ErrorAction SilentlyContinue
+    
+        if (!$rdService) {
+            Write-Host 'OSLRDServer service is not installed on this computer.'
+            return
+        }
+    
+        # Stop service if it is running
+        if ($rdService.Status -ne 'Stopped') {
+            Write-Host 'Stopping OSLRDServer service...'
+    
+            # Try stopping the service gracefully first
+            $rdService.Stop()
+    
+            # Wait for the service to stop
+            $rdService.WaitForStatus('Stopped', '00:00:05')
+    
+            # If the service is still running, force kill it
+            if ($rdService.Status -ne 'Stopped') {
+                Stop-Process -Name OSLRDServerService -Force
+                Write-Host 'OSLRDServer service killed.'
+            }
+        }
+    
+        Write-Host 'OSLRDServer service stopped.'
+    }
+    #endregion
 
-        # Wait for 5 seconds to let the window close
-        Start-Sleep -Seconds 5
-
-        # Check if the process is still running and kill it if needed
-        if (!$appConsole.HasExited) {
-            Write-Host 'AppConsole did not close gracefully. Killing the process...'
-            $appConsole | Stop-Process -Force
+    #region Console
+    function Start-OslRdServerConsole {
+        #[C] per avviare la modalita console
+        Write-Host 'Avvio Console...' -ForegroundColor Green
+        Stop-RdConsole
+        Stop-RdService
+        Start-Process $pathExeConsole -Verb RunAs
+    }
+    function Stop-OslRdServerConsole {
+        #[B] per avviare la modalita console
+        Write-Host 'Stop Console...' -ForegroundColor Green
+        Stop-RdConsole
+    }
+    function Stop-RdConsole {
+        [CmdletBinding()]
+        param()
+        # Get the process object for OSLRDServer
+        $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+    
+        if ($appConsole) {
+            Write-Host 'Trying to gracefully close the AppConsole...'
+            # Try to close the main window gracefully first
+            $appConsole.CloseMainWindow()
+    
+            # Wait for 5 seconds to let the window close
+            Start-Sleep -Seconds 5
+    
+            # Check if the process is still running and kill it if needed
+            if (!$appConsole.HasExited) {
+                Write-Host 'AppConsole did not close gracefully. Killing the process...'
+                $appConsole | Stop-Process -Force
+            }
+            else {
+                Write-Host 'AppConsole closed gracefully.'
+            }
         }
         else {
-            Write-Host 'AppConsole closed gracefully.'
+            Write-Host 'AppConsole is not running.'
         }
     }
-    else {
-        Write-Host 'AppConsole is not running.'
-    }
-}
+    #endregion
 
-Function Stop-RdService {
-    param()
+#endregion
 
-    # Get RdService service
-    $rdService = Get-Service -Name OSLRDServer -ErrorAction SilentlyContinue
-
-    if (!$rdService) {
-        Write-Host 'OSLRDServer service is not installed on this computer.'
-        return
-    }
-
-    # Stop service if it is running
-    if ($rdService.Status -ne 'Stopped') {
-        Write-Host 'Stopping OSLRDServer service...'
-
-        # Try stopping the service gracefully first
-        $rdService.Stop()
-
-        # Wait for the service to stop
-        $rdService.WaitForStatus('Stopped', '00:00:05')
-
-        # If the service is still running, force kill it
-        if ($rdService.Status -ne 'Stopped') {
-            Stop-Process -Name OSLRDServerService -Force
-            Write-Host 'OSLRDServer service killed.'
-        }
-    }
-
-    Write-Host 'OSLRDServer service stopped.'
-}
+#region Overone
 Function Stop-OverOneMonitoring {
     #lo uso per killare il servizio da interfaccia
     # get OverOneMonitoring service
@@ -240,6 +318,25 @@ Function Stop-OverOneMonitoring {
     Remove-Variable OverOneMonitoring
 
 }
+function Restart-Overone {
+    #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
+    if ($global:isOverOneInstalled) {
+        Write-Host 'Killo Overone...' -ForegroundColor Green
+        Stop-OverOneMonitoring
+        Remove-Item -Path $LogOverOne -Force
+        Start-Sleep 2
+        Start-Service  OverOneMonitoringWindowsService
+        Write-Host 'Aspetto i segnali...'
+        Start-Sleep 15
+        Invoke-Item $LogOverOne
+    }
+    else {
+        Write-Host 'OverOne non installato' -ForegroundColor Red
+    }
+}
+#endregion
+
+
 function Get-AppPath {
     param (
         [Parameter(Mandatory = $true)]
@@ -261,132 +358,14 @@ function Get-AppPath {
 
     return $serviceBinaryPath
 }
-Function Sync-InitConsole {
-    #check init from service to appconsole if are equal
-    if (Test-Path -Path $InitConsole -PathType Leaf) {
-        if (!((Get-FileHash $InitService).Hash -eq (Get-FileHash $InitConsole).Hash)) {
-            Write-Host 'Console ini not aligned...'
-            Copy-Item $InitService -Destination $InitConsole
-            Write-Host 'Copied from Service...Completed'
-            Start-Sleep 3
-            Clear-Host
-        }
-    }
-    else {
-        Write-Host 'Console ini missing...'
-        Copy-Item $InitService -Destination $InitConsole
-        Write-Host 'Copied from Service...Completed'
-        Start-Sleep 3
-        Clear-Host
-    }
-}
-function Start-OslRdServerService {
-    # [S] per avviare la modalita servizio
-    Write-Host 'Avvio Servizio OslRdServer...' -ForegroundColor Green
-    Stop-RdConsole
-    Restart-Service  OSLRDServer
-    Get-Service OSLRDServer
-}
-function Stop-OslRdServerService {
-    # [F] per avviare la modalita servizio
-    Write-Host 'Fermo Servizio OslRdServer...' -ForegroundColor Green
-    Stop-RdConsole
-    Stop-Service  OSLRDServer
-    Get-Service OSLRDServer
-}
-function Start-OslRdServerConsole {
-    #[C] per avviare la modalita console
-    Write-Host 'Avvio Console...' -ForegroundColor Green
-    Stop-RdConsole
-    Stop-RdService
-    Start-Process $pathExeConsole -Verb RunAs
-}
-function Stop-OslRdServerConsole {
-    #[B] per avviare la modalita console
-    Write-Host 'Stop Console...' -ForegroundColor Green
-    Stop-RdConsole
-}
-function Stop-AllService {
-    #[K] per arrestare il servizio o console e OverOne
-    Write-Host 'Killo i servizi...' -ForegroundColor Green
-    Stop-RdConsole
-    Stop-RdService
-    Stop-OverOneMonitoring
-    Write-Host "Servizi FERMI"
-}
-function Restart-Overone {
-    #[O] per riavviare il servizio OverOneMonitoring e cancellare il LOG
-    if ($global:isOverOneInstalled) {
-        Write-Host 'Killo Overone...' -ForegroundColor Green
-        Stop-OverOneMonitoring
-        Remove-Item -Path $LogOverOne -Force
-        Start-Sleep 2
-        Start-Service  OverOneMonitoringWindowsService
-        Write-Host 'Aspetto i segnali...'
-        Start-Sleep 15
-        Invoke-Item $LogOverOne
-    }
-    else {
-        Write-Host 'OverOne non installato' -ForegroundColor Red
-    }
-}
-function Open-Init {
-    #[I] per la lettura del Init di OSLRDServer
-    Write-Host 'Apro Init...' -ForegroundColor Green
-    Start-Process notepad.exe $InitService -NoNewWindow -Wait
-    write-host 'Controllo modifiche...' -ForegroundColor Green
-}
-function Edit-Tcplistener {
-    #[L] Per modificare TCPListener All'interno del init
-    $IP = Read-Host -Prompt 'Inserisci IP da modificare '
-    Set-IniValue $InitService 'Config' 'serverTCPListener' $IP
-    Write-Host 'scritto ip...' -ForegroundColor Green
-}
-function Switch-SegnaliSuTabella {
-    #[T] ON/OFF segnali su Tabella
-    $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico'
-    $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
 
-    if (($usoCollegamentoUnico -ne 0) -or ($segnaliSutabella -ne 0)) {
-        Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' 0
-        Set-IniValue $InitService 'Config' 'segnaliSuTabella' 0
-        Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
-    }
-    else {
-        Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' -1
-        Set-IniValue $InitService 'Config' 'segnaliSuTabella' -1
-        Write-Host "Abilitati segnali su tabella" -ForegroundColor green
-    }
-}
-function Copy-DsnToInit {
-    #[D] Copio dati di un dsn dentro init servizio
-    Write-Host "DSN check"
-    $selection = Get-ChildItem $PathDSN |  Out-GridView -OutputMode Single
 
-    $title = "DSN overwrite"
-    $question = "è stato selezionato il seguente dsn $($selection.Name) procedere?"
-    $choices = '&Yes', '&No'
 
-    $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
-    if ($decision -eq 0) {
-        Write-Host 'confirmed'
 
-        $dsnDatabase = Get-IniValue $selection.FullName 'ODBC' 'DATABASE'
-        Set-IniValue $InitService 'Config' 'database' $dsnDatabase
 
-        $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'
-        Set-IniValue $InitService 'Config' 'database' $dsnServer
 
-        $dsnUser = Get-IniValue $selection.FullName 'ODBC' 'UID'
-        Set-IniValue $InitService 'Config' 'database' $dsnUser
 
-        $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD'
-        Set-IniValue $InitService 'Config' 'database' $dsnPassword
-    }
-    else {
-        Write-Host 'cancelled'
-    }
-}
+
 function Show-FirewallStatus {
 
     $enabledFirewalls = Get-NetFirewallProfile | Where-Object { $_.Enabled }
@@ -499,7 +478,7 @@ function Switch-DebugLog {
 function Open-GP90 {
     Start-Process $pathGp90
 }
-
+#region GUI
 function Show-Title {
     Write-Host '
   ██████  ███████ ██              ██████  ███████ ██████  ██    ██  ██████   ██████  ███████ ██████
@@ -514,17 +493,12 @@ function Show-Menu {
         [string]$Title = 'Osl Debugger'
     )
     Write-Host""
+    Write-Host "[+] install Notepad++"
     write-host " Funzionalità di controllo OSLRDServer e servizi annessi al Coll.Macchina, comandi in elenco qui sotto:"
     write-host "======================================================================================================"
-    # Write-Host "= [J] Open osl firewall"
-    Write-Host "= [+] install Notepad++"
     if ($global:isGP90Installed) {
         Write-Host '= [G] ON/OFF DebugLog'
         Write-Host '= [9] Open Gp90 folder'
-    }
-
-
-    if ($global:isGP90Installed) {
         Write-Host "= [A] Forza Allineamento Init Servizio con init console"
         Write-Host "= [I] per la lettura del Init di OSLRDServer"
         Write-Host "= [v] Apri Configuratore Collegamenti"
@@ -558,6 +532,61 @@ function Show-Menu {
     Write-Host " [R] Reload script"
     Write-Host""
 }
+#endregion
+
+#region Deprecati
+function Copy-DsnToInit {
+    #[D] Copio dati di un dsn dentro init servizio
+    Write-Host "DSN check"
+    $selection = Get-ChildItem $PathDSN |  Out-GridView -OutputMode Single
+
+    $title = "DSN overwrite"
+    $question = "è stato selezionato il seguente dsn $($selection.Name) procedere?"
+    $choices = '&Yes', '&No'
+
+    $decision = $Host.UI.PromptForChoice($title, $question, $choices, 1)
+    if ($decision -eq 0) {
+        Write-Host 'confirmed'
+
+        $dsnDatabase = Get-IniValue $selection.FullName 'ODBC' 'DATABASE'
+        Set-IniValue $InitService 'Config' 'database' $dsnDatabase
+
+        $dsnServer = Get-IniValue $selection.FullName 'ODBC' 'SERVER'
+        Set-IniValue $InitService 'Config' 'database' $dsnServer
+
+        $dsnUser = Get-IniValue $selection.FullName 'ODBC' 'UID'
+        Set-IniValue $InitService 'Config' 'database' $dsnUser
+
+        $dsnPassword = Get-IniValue $selection.FullName 'ODBC' 'PASSWORD'
+        Set-IniValue $InitService 'Config' 'database' $dsnPassword
+    }
+    else {
+        Write-Host 'cancelled'
+    }
+}
+function Edit-Tcplistener {
+    #[L] Per modificare TCPListener All'interno del init
+    $IP = Read-Host -Prompt 'Inserisci IP da modificare '
+    Set-IniValue $InitService 'Config' 'serverTCPListener' $IP
+    Write-Host 'scritto ip...' -ForegroundColor Green
+}
+function Switch-SegnaliSuTabella {
+    #[T] ON/OFF segnali su Tabella
+    $usoCollegamentoUnico = Get-IniValue $InitService 'Config' 'usoCollegamentoUnico'
+    $segnaliSutabella = Get-IniValue $InitService 'Config' 'segnaliSuTabella'
+
+    if (($usoCollegamentoUnico -ne 0) -or ($segnaliSutabella -ne 0)) {
+        Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' 0
+        Set-IniValue $InitService 'Config' 'segnaliSuTabella' 0
+        Write-Host "Disabilitati segnali su tabella " -ForegroundColor RED
+    }
+    else {
+        Set-IniValue $InitService 'Config' 'usoCollegamentoUnico' -1
+        Set-IniValue $InitService 'Config' 'segnaliSuTabella' -1
+        Write-Host "Abilitati segnali su tabella" -ForegroundColor green
+    }
+}
+#endregion
 Function main {
 
     $global:ports = @(1433, 5888)
