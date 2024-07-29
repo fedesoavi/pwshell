@@ -210,99 +210,99 @@ function Stop-AllService {
 #endregion
 
 #region OslRdServer
-    #
-    #
-    #
-    #
-    #
-    #region Service
-    function Start-OslRdServerService {
-        # [S] per avviare la modalita servizio
-        Write-Host 'Avvio Servizio OslRdServer...' -ForegroundColor Green
-        Stop-RdConsole
-        Restart-Service  OSLRDServer
-        Get-Service OSLRDServer
+#
+#
+#
+#
+#
+#region Service
+function Start-OslRdServerService {
+    # [S] per avviare la modalita servizio
+    Write-Host 'Avvio Servizio OslRdServer...' -ForegroundColor Green
+    Stop-RdConsole
+    Restart-Service  OSLRDServer
+    Get-Service OSLRDServer
+}
+function Stop-OslRdServerService {
+    # [F] per avviare la modalita servizio
+    Write-Host 'Fermo Servizio OslRdServer...' -ForegroundColor Green
+    Stop-RdConsole
+    Stop-Service  OSLRDServer
+    Get-Service OSLRDServer
+}
+Function Stop-RdService {
+    param()
+    
+    # Get RdService service
+    $rdService = Get-Service -Name OSLRDServer -ErrorAction SilentlyContinue
+    
+    if (!$rdService) {
+        Write-Host 'OSLRDServer service is not installed on this computer.'
+        return
     }
-    function Stop-OslRdServerService {
-        # [F] per avviare la modalita servizio
-        Write-Host 'Fermo Servizio OslRdServer...' -ForegroundColor Green
-        Stop-RdConsole
-        Stop-Service  OSLRDServer
-        Get-Service OSLRDServer
-    }
-    Function Stop-RdService {
-        param()
     
-        # Get RdService service
-        $rdService = Get-Service -Name OSLRDServer -ErrorAction SilentlyContinue
+    # Stop service if it is running
+    if ($rdService.Status -ne 'Stopped') {
+        Write-Host 'Stopping OSLRDServer service...'
     
-        if (!$rdService) {
-            Write-Host 'OSLRDServer service is not installed on this computer.'
-            return
-        }
+        # Try stopping the service gracefully first
+        $rdService.Stop()
     
-        # Stop service if it is running
+        # Wait for the service to stop
+        $rdService.WaitForStatus('Stopped', '00:00:05')
+    
+        # If the service is still running, force kill it
         if ($rdService.Status -ne 'Stopped') {
-            Write-Host 'Stopping OSLRDServer service...'
-    
-            # Try stopping the service gracefully first
-            $rdService.Stop()
-    
-            # Wait for the service to stop
-            $rdService.WaitForStatus('Stopped', '00:00:05')
-    
-            # If the service is still running, force kill it
-            if ($rdService.Status -ne 'Stopped') {
-                Stop-Process -Name OSLRDServerService -Force
-                Write-Host 'OSLRDServer service killed.'
-            }
+            Stop-Process -Name OSLRDServerService -Force
+            Write-Host 'OSLRDServer service killed.'
         }
-    
-        Write-Host 'OSLRDServer service stopped.'
     }
-    #endregion
+    
+    Write-Host 'OSLRDServer service stopped.'
+}
+#endregion
 
-    #region Console
-    function Start-OslRdServerConsole {
-        #[C] per avviare la modalita console
-        Write-Host 'Avvio Console...' -ForegroundColor Green
-        Stop-RdConsole
-        Stop-RdService
-        Start-Process $pathExeConsole -Verb RunAs
-    }
-    function Stop-OslRdServerConsole {
-        #[B] per avviare la modalita console
-        Write-Host 'Stop Console...' -ForegroundColor Green
-        Stop-RdConsole
-    }
-    function Stop-RdConsole {
-        [CmdletBinding()]
-        param()
-        # Get the process object for OSLRDServer
-        $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
+#region Console
+function Start-OslRdServerConsole {
+    #[C] per avviare la modalita console
+    Write-Host 'Avvio Console...' -ForegroundColor Green
+    Stop-RdConsole
+    Stop-RdService
+    Start-Process $pathExeConsole -Verb RunAs
+}
+function Stop-OslRdServerConsole {
+    #[B] per avviare la modalita console
+    Write-Host 'Stop Console...' -ForegroundColor Green
+    Stop-RdConsole
+}
+function Stop-RdConsole {
+    [CmdletBinding()]
+    param()
+    # Get the process object for OSLRDServer
+    $appConsole = Get-Process OSLRDServer -ErrorAction SilentlyContinue
     
-        if ($appConsole) {
-            Write-Host 'Trying to gracefully close the AppConsole...'
-            # Try to close the main window gracefully first
-            $appConsole.CloseMainWindow()
+    if ($appConsole) {
+        Write-Host 'Trying to gracefully close the AppConsole...'
+        # Try to close the main window gracefully first
+        $appConsole.CloseMainWindow()
     
-            # Wait for 5 seconds to let the window close
-            Start-Sleep -Seconds 5
+        # Wait for 5 seconds to let the window close
+        Start-Sleep -Seconds 5
     
-            # Check if the process is still running and kill it if needed
-            if (!$appConsole.HasExited) {
-                Write-Host 'AppConsole did not close gracefully. Killing the process...'
-                $appConsole | Stop-Process -Force
-            }
-            else {
-                Write-Host 'AppConsole closed gracefully.'
-            }
+        # Check if the process is still running and kill it if needed
+        if (!$appConsole.HasExited) {
+            Write-Host 'AppConsole did not close gracefully. Killing the process...'
+            $appConsole | Stop-Process -Force
         }
         else {
-            Write-Host 'AppConsole is not running.'
+            Write-Host 'AppConsole closed gracefully.'
         }
     }
-    #endregion
+    else {
+        Write-Host 'AppConsole is not running.'
+    }
+}
+#endregion
 
 #endregion
 
@@ -416,7 +416,7 @@ function Open-ConfiguraCollegamenti {
 function Switch-DebugLog {
 
     $debugLog = Get-IniValue $InitService 'Config' 'debuglog'
-    if ($debugLog -ne 0)  {
+    if ($debugLog -ne 0) {
         Set-IniValue $InitService 'Config' 'debuglog' '0'
         Write-Host "Disabilitato DebugLog" -ForegroundColor RED
     }
@@ -591,7 +591,7 @@ Function main {
 
     #OverOne
     #check if Overone is installed
-    $global:isOverOneInstalled = $null -ne (Get-CimInstance -ClassName win32_service  | where-object{$_.Name -like 'OverOneMonitoringWindowsService'})
+    $global:isOverOneInstalled = $null -ne (Get-CimInstance -ClassName win32_service  | where-object { $_.Name -like 'OverOneMonitoringWindowsService' })
 
     if ($global:isOverOneInstalled) {
         $pathOverOneMonitor = Split-Path -Path (Get-AppPath('OverOneMonitoringWindowsService'))
@@ -600,7 +600,7 @@ Function main {
 
     #GP90
     #check if GP90 is installed
-    $global:isGP90Installed = $null -ne (Get-CimInstance -ClassName win32_service  | where-object{$_.Name -like 'OSLRDServer'})
+    $global:isGP90Installed = $null -ne (Get-CimInstance -ClassName win32_service  | where-object { $_.Name -like 'OSLRDServer' })
 
     if ($global:isGP90Installed) {
         $servicepath = Get-AppPath('OSLRDServer')
@@ -633,7 +633,7 @@ Function main {
             }
             Write-Host ' Indirizzi IP:'
             Write-Host '        Indirizzo IP inserito dentro INIT:'  (Get-IniValue $InitService 'Config' 'serverTCPListener')
-            if ((Get-IniValue $InitService 'Config' 'debuglog') -ne 0) {Write-Host ' Debug log attivo'} else {Write-Host ' Debug log disattivo'}
+            if ((Get-IniValue $InitService 'Config' 'debuglog') -ne 0) { Write-Host ' Debug log attivo' } else { Write-Host ' Debug log disattivo' }
         }
 
         Write-Host ' Servizi:'
@@ -709,15 +709,15 @@ Function main {
                 Stop-OverOneMonitoring
             }
             #######################################
-            +{
+            + {
                 #[+] installa notepad++
                 Get-notepad++
             }
-            G{
+            G {
                 #[G] ON/OFF Debug
                 Switch-DebugLog
             }
-            9{
+            9 {
                 #[9] Open GP90
                 Open-GP90
             }
@@ -726,7 +726,7 @@ Function main {
                 Clear-Host
                 Exit
             }
-           <#  E {
+            <#  E {
                 #[E] Check TCP servizio o console OSL
                 Get-TCPOsl
             } #>
