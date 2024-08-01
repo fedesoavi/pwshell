@@ -2,13 +2,19 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName PresentationFramework
 
-$currentPrincipal = New-Object Security.Principal.WindowsPrincipal( [Security.Principal.WindowsIdentity]::GetCurrent() )
-
-if (-not $currentPrincipal.IsInRole( [Security.Principal.WindowsBuiltInRole]::Administrator )) {
- (get-host).UI.RawUI.Backgroundcolor = "DarkRed"
-    clear-host
-    write-host "Warning: PowerShell is not running as an Administrator.`n"
-    start-sleep 2
+#This will self elevate the script so with a UAC prompt since this script needs to be run as an Administrator in order to function properly.
+If (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]'Administrator')) {
+    (get-host).UI.RawUI.Backgroundcolor = "DarkRed"
+    Write-Host "You didn't run this script as an Administrator. This script will self elevate to run as an Administrator and continue."
+    Start-Sleep 1
+    Write-Host "                                               3"
+    Start-Sleep 1
+    Write-Host "                                               2"
+    Start-Sleep 1
+    Write-Host "                                               1"
+    Start-Sleep 1
+    Start-Process powershell.exe -ArgumentList ("-NoProfile -ExecutionPolicy Bypass -File `"{0}`"" -f $PSCommandPath) -Verb RunAs
+    Exit
 }
 
 # Define the WinApiHelper class using Add-Type with here-string
@@ -750,4 +756,5 @@ Function main {
 
 
 main
-
+[System.GC]::Collect()
+[System.GC]::WaitForPendingFinalizers()
